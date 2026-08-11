@@ -1,0 +1,85 @@
+---
+description: OKF-inspired Markdown knowledge docs (frontmatter, structure, links)
+globs: "docs/**/*.md"
+alwaysApply: false
+---
+
+# Markdown / OKF writing rules
+
+Follow [Open Knowledge Format (OKF) v0.2](https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md) for project docs. Keep docs Korean, concise, and structural (headings, lists, tables, fenced code)—not long prose.
+
+## Concept documents (`docs/**/*.md` and other knowledge `.md`)
+
+Every non-reserved `.md` SHOULD have YAML frontmatter:
+
+```yaml
+---
+type: Reference          # REQUIRED — e.g. Reference, Playbook, Metric, Guide
+title: 짧은 표시 제목
+description: 한 줄 요약.
+tags: [collector, backtest]
+status: stable           # draft | stable | deprecated (absent ⇒ stable)
+generated: { by: human:<id>, at: 2026-08-09T00:00:00Z }   # when known
+---
+```
+
+- `type` is the only always-required key; unknown types are OK.
+- Prefer `title`, `description`, `tags`. Use `resource` when the doc describes a concrete URI/path.
+- Agent/human edits: set `generated.by` with actor form `human:<id>`, `<agent>/<version>`, or `process:<id>`.
+- Optional provenance: `sources` with `resource` (+ optional `id` for footnotes). Attribute claims with `[^source-id]` footnotes keyed to `sources[].id`—no `# Citations` body list.
+- Optional trust: `verified: { by: human:<id>, at: ... }`. Optional freshness: `stale_after: YYYY-MM-DD`.
+
+### Body
+
+- No required sections. Prefer clear `#` / `##` headings, tables for schemas/options, fenced commands for CLI.
+- Cross-links: prefer **bundle-root absolute** paths (`[흐름](/docs/flow.md)`). Relative links are OK. Broken links are tolerated (not-yet-written).
+- End investment-related docs with: `투자 조언을 제공하지 않습니다.` when the doc discusses market data or backtests.
+
+### Reserved filenames
+
+Do not use these names for normal concepts:
+
+| File | Role |
+|------|------|
+| `index.md` | Directory listing (progressive disclosure); usually **no** frontmatter except root may have `okf_version: "0.2"` |
+| `log.md` | Chronological updates, newest first, `## YYYY-MM-DD` headings |
+
+`index.md` entry style:
+
+```markdown
+# 섹션
+
+* [제목](relative.md) - frontmatter description 한 줄
+```
+
+## Root `README.md`
+
+MAY stay a thin command cheat-sheet **without** full OKF frontmatter. Point to `docs/` for detail. Do not duplicate long pipeline docs in README.
+
+## Do / Don't
+
+```markdown
+<!-- ❌ BAD: freeform wall of text, no type, positional "see above" -->
+이 문서는 수집 방법을 설명합니다. 위에서 말한 대로 실행하세요.
+
+<!-- ✅ GOOD -->
+---
+type: Guide
+title: 데이터 흐름
+description: CLI에서 curated 저장까지의 파이프라인.
+tags: [collector]
+status: stable
+---
+
+# CLI
+
+| 명령 | 역할 |
+|------|------|
+| `market-data update` | 미수집 1일 갱신 |
+
+자세한 가정은 [토이 백테스트](/docs/backtest.md)를 보세요.
+```
+
+- Do not invent Attested Computation / executor / attester unless the doc is literally a sanctioned computation.
+- Do not reject or rewrite docs solely for missing optional OKF fields; add them when creating or substantially editing.
+- Prefer updating `docs/README.md` index links when adding a new doc under `docs/`.
