@@ -15,11 +15,13 @@ generated: { by: agent/cursor, at: 2026-08-09T08:34:00Z }
 
 ```text
 src/backtest/
+  api.py              # run_backtest, run_universe_backtest
   cli.py              # backtest run --strategy ...
-  data/prices.py      # curated 로드
-  core/               # BacktestResult, run_bar_by_bar
+  data/prices.py      # curated 로드 (단일·패널)
+  data/universe.py    # 기준일 시총 유니버스
+  core/               # BacktestResult, RunPanel, run_bar_by_bar
   strategies/         # Strategy protocol + registry
-  analytics/          # metrics, plot
+  analytics/          # metrics, plot, cross_section
 ```
 
 # 가정 (golden_cross)
@@ -49,14 +51,22 @@ uv run backtest run --security-id KRX:005930 --start 2015-01-01 --plot
 uv run backtest run --security-id KRX:005930 --plot-path reports/samsung.png --show-plot
 ```
 
+노트북: [golden_cross.ipynb](/notebooks/golden_cross.ipynb), 유니버스 분석은 [universe_golden_cross.ipynb](/notebooks/universe_golden_cross.ipynb). 설치·승격은 [노트북 워크벤치](/docs/notebooks.md)를 보세요.
+
 주요 옵션: `--strategy`, `--data-dir`, `--end`, `--initial-cash`, `--fee-rate`, `--plot`, `--plot-path`, `--show-plot`.
 
 `--plot`만 주면 `backtest_plots/<security_id>_<strategy>.png`에 저장합니다. 기본 `--data-dir`는 `data/market-data`입니다.
 
+# 유니버스 배치
+
+`list_universe(as_of, min_market_cap)` → `run_universe_backtest`. `market_cap`은 **원**. 기본 하한 1,000억.
+
+효과: `excess_return > 0` 그리고 `max_drawdown >= mdd_limit`(기본 -30%). 기준일 시총으로 과거를 돌리면 생존편향이 있습니다. PIT는 `as_of`를 백테스트 시작일에 맞춥니다. `as_of`가 휴일이면 그 이전 마지막 거래일을 씁니다. 업종은 마스터에 없습니다.
+
 # 한계
 
-- 생존편향·상장폐지·거래정지 미처리
-- 전 종목·포트폴리오·파라미터 탐색은 범위 밖
+- 생존편향·상장폐지·거래정지 미처리 (유니버스 `as_of`가 최근이면 과거 구간은 생존편향)
+- 포트폴리오 동시보유·파라미터 탐색은 범위 밖
 - 수정주가가 비어 있으면 raw 종가로 대체되므로 분할 구간 왜곡 가능
 - 시가·종가가 0 이하인 봉(휴장·결측성 데이터)은 로드 시 제외
 

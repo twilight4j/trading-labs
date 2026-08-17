@@ -24,6 +24,7 @@ backtest = "backtest.cli:app"
 
 [dependency-groups]
 dev = ["pytest>=8.0"]
+notebook = ["ipykernel>=6", "jupyterlab>=4"]
 
 [build-system]
 requires = ["hatchling>=1.25"]

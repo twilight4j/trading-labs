@@ -22,11 +22,13 @@ trading-labs/
 │   ├── storage/               # Parquet lakehouse · DuckDB 카탈로그
 │   └── ingestion/             # 일별 수집 오케스트레이션 · 스케줄러
 ├── src/backtest/              # 토이 백테스트
+│   ├── api.py                 # run_backtest · run_universe_backtest
 │   ├── cli.py                 # Typer CLI (`backtest`) — 전략 디스패치
-│   ├── data/                  # curated 일봉 로드
-│   ├── core/                  # BacktestResult · bar 엔진
+│   ├── data/                  # curated 일봉 로드 · 유니버스 필터
+│   ├── core/                  # BacktestResult · RunPanel · bar 엔진
 │   ├── strategies/            # 전략 플러그인 (golden_cross 등)
-│   └── analytics/             # 성과 요약 · 그래프
+│   └── analytics/             # 성과 요약 · 그래프 · 횡단면
+├── notebooks/                 # Jupyter 실험 면 (golden_cross · 유니버스 분석)
 ├── tests/                     # pytest
 ├── data/                      # 런타임 데이터 루트 (gitignore)
 │   └── market-data/           # 시세·재무 lakehouse
@@ -37,7 +39,7 @@ trading-labs/
 └── pyproject.toml
 ```
 
-파이프라인 동작은 [데이터 흐름](/docs/flow.md), 백테스트는 [토이 백테스트](/docs/backtest.md)를 보세요.
+파이프라인 동작은 [데이터 흐름](/docs/flow.md), 백테스트는 [토이 백테스트](/docs/backtest.md), 노트북은 [노트북 워크벤치](/docs/notebooks.md)를 보세요.
 
 # Collector CLI
 

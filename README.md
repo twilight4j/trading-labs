@@ -8,6 +8,13 @@ uv sync --group dev
 cp .env.example .env   # KRX_ID, KRX_PW, DART_API_KEY 입력
 ```
 
+**노트북 백테스트**
+```bash
+uv sync --group notebook
+uv run jupyter lab
+```
+커널은 프로젝트 `.venv`를 고릅니다. 예제: [notebooks/golden_cross.ipynb](notebooks/golden_cross.ipynb), 유니버스 분석: [notebooks/universe_golden_cross.ipynb](notebooks/universe_golden_cross.ipynb). 상세는 [docs/notebooks.md](docs/notebooks.md).
+
 **1) backfill (최초·대량 수집)**
 ```bash
 # 일봉

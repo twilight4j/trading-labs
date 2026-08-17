@@ -1,4 +1,4 @@
 from backtest.core.engine import run_bar_by_bar
-from backtest.core.types import BacktestResult
+from backtest.core.types import BacktestResult, RunPanel
 
-__all__ = ["BacktestResult", "run_bar_by_bar"]
+__all__ = ["BacktestResult", "RunPanel", "run_bar_by_bar"]

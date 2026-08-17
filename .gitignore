@@ -5,6 +5,8 @@ __pycache__/
 data/
 backup/
 backtest_plots/
+backtest_runs/
 .env
 .omc
+.ipynb_checkpoints/
 .DS_Store

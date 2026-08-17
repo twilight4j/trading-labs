@@ -6,8 +6,8 @@ from pathlib import Path
 import typer
 
 from backtest.analytics import plot_backtest, summarize
-from backtest.data import load_price_series
-from backtest.strategies import available_strategies, get_strategy
+from backtest.api import run_backtest
+from backtest.strategies import available_strategies
 
 app = typer.Typer(help="단일 종목 토이 백테스트")
 
@@ -51,24 +51,26 @@ def run(
     show_plot: bool = typer.Option(False, "--show-plot", help="그래프 창으로 표시"),
 ) -> None:
     """등록된 전략으로 단일 종목 백테스트를 실행합니다."""
-    if strategy == "golden_cross" and fast >= slow:
-        raise typer.BadParameter("fast must be < slow")
+    params: dict[str, object] = {}
+    if strategy == "golden_cross":
+        params = {"fast": fast, "slow": slow}
 
     try:
-        params: dict[str, object] = {}
-        if strategy == "golden_cross":
-            params = {"fast": fast, "slow": slow}
-        strat = get_strategy(strategy, **params)
+        result = run_backtest(
+            strategy,
+            security_id,
+            data_dir=data_dir,
+            start=_parse_date(start),
+            end=_parse_date(end),
+            initial_cash=initial_cash,
+            fee_rate=fee_rate,
+            **params,
+        )
     except KeyError as exc:
         raise typer.BadParameter(str(exc)) from exc
+    except ValueError as exc:
+        raise typer.BadParameter(str(exc)) from exc
 
-    prices = load_price_series(
-        data_dir,
-        security_id,
-        start=_parse_date(start),
-        end=_parse_date(end),
-    )
-    result = strat.run(prices, initial_cash=initial_cash, fee_rate=fee_rate)
     summary = summarize(result)
 
     typer.echo(f"strategy={strategy}  security_id={security_id}  fee={fee_rate}")

@@ -8,12 +8,12 @@ from backtest.core.types import BacktestResult
 
 
 class Strategy(Protocol):
-    """Prepare price bars with execution signal columns for the shared engine."""
+    """Strategy plugin: custom run(), or prepare() plus the shared bar engine."""
 
     name: str
 
     def prepare(self, prices: pd.DataFrame) -> pd.DataFrame:
-        """Return prices plus signal columns (at least golden_cross / death_cross)."""
+        """When using the shared engine, return prices plus golden_cross / death_cross."""
 
     def run(
         self,
@@ -22,4 +22,4 @@ class Strategy(Protocol):
         initial_cash: float = 10_000_000.0,
         fee_rate: float = 0.0015,
     ) -> BacktestResult:
-        """Run this strategy through the shared bar engine."""
+        """Run this strategy; may use run_bar_by_bar or a custom loop."""

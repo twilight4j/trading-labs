@@ -10,6 +10,7 @@ okf_version: "0.2"
 # Backtest
 
 * [토이 백테스트](backtest.md) - 골든/데드크로스 가정·실행·한계
+* [노트북 워크벤치](notebooks.md) - Jupyter 실행·전략 승격
 
 # 진입
 
