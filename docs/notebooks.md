@@ -11,7 +11,7 @@ generated: { by: agent/cursor, at: 2026-08-16T07:00:00Z }
 
 노트북은 실험 면입니다. 안정된 전략은 `src/backtest/strategies/`가 소스 오브 트루스입니다. CLI와 노트북은 같은 `run_backtest()`를 호출합니다.
 
-이 슬라이스에 **없는 것:** 무한매수법 구현, `run_bar_by_bar` 일반화, 미국 ETF 수집, ipywidgets.
+이 슬라이스에 **없는 것:** `run_bar_by_bar` 일반화, 미국 ETF 수집, ipywidgets.
 
 가정·엔진 한계는 [토이 백테스트](/docs/backtest.md)를 보세요.
 
@@ -31,6 +31,7 @@ uv sync --group dev --group notebook
 | 경로 | 역할 |
 |------|------|
 | [notebooks/golden_cross.ipynb](/notebooks/golden_cross.ipynb) | `run_backtest` 레퍼런스 런 |
+| [notebooks/infinite_buy.ipynb](/notebooks/infinite_buy.ipynb) | 무한매수법 V4 `run_backtest` 러너 |
 | [notebooks/universe_golden_cross.ipynb](/notebooks/universe_golden_cross.ipynb) | 시총 유니버스 배치·종목/기간 분석 |
 | [notebooks/templates/strategy_scratch.ipynb](/notebooks/templates/strategy_scratch.ipynb) | 새 전략 실험 (경로 A/B) |
 
@@ -83,7 +84,7 @@ panel.summaries  # excess_return, max_drawdown, effective
 
 1. `notebooks/templates/strategy_scratch.ipynb`에서 실험합니다.
 2. **경로 A** (롱 온리, 전량, 다음 봉 시가): `golden_cross`/`death_cross` 컬럼을 만들고 `run_bar_by_bar`를 씁니다.
-3. **경로 B** (분할·지정가·상태머신 등): 커스텀 루프로 `BacktestResult`를 조립합니다. 무한매수법은 이 경로입니다.
+3. **경로 B** (분할·지정가·상태머신 등): 커스텀 루프로 `BacktestResult`를 조립합니다. 무한매수법(`infinite_buy`)은 이 경로입니다.
 4. `src/backtest/strategies/<name>.py`에 `Strategy`를 구현하고 `STRATEGIES`에 등록합니다.
 5. synthetic DataFrame 테스트를 추가합니다.
 6. 노트북은 `run_backtest("<name>", ...)` 러너로 줄입니다.

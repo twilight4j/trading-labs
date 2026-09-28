@@ -51,6 +51,13 @@ class Settings:
     timezone: str = "Asia/Seoul"
     dart_request_interval: float = 0.15
     dart_reprt_codes: tuple[str, ...] = ("11011", "11012", "11013", "11014")
+    consensus_request_interval: float = 0.3
+    consensus_max_retries: int = 3
+    consensus_min_market_cap: int = 120_000_000_000
+    consensus_max_failure_rate: float = 0.05
+    consensus_schedule_day: str = "sat"
+    consensus_schedule_hour: int = 9
+    consensus_schedule_minute: int = 0
 
     @property
     def raw_dir(self) -> Path:

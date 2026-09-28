@@ -41,6 +41,14 @@ uv run market-data fundamentals sync-corp-codes --data-dir data/market-data/test
 uv run market-data fundamentals update --year 2025 --limit 3 --data-dir data/market-data/test
 ```
 
+**3) 가치투자 적정시총·상승여력** — [docs/valuation.md](docs/valuation.md)
+```bash
+# 컨센서스 스냅샷 (serve가 주 1회 자동 실행, 수동 실행도 가능)
+uv run market-data consensus update
+# trading-ui용 API (127.0.0.1:8100, Vite 프록시 /api/v1/valuation)
+caffeinate -sm uv run labs-api serve
+```
+
 - 가격(`pykrx`): `.env`의 `KRX_ID` / `KRX_PW`
 - 재무(`OpenDART`): `.env`의 `DART_API_KEY`
 - 수정주가 재구축: `uv run market-data prices rebuild-adjusted --security-id KRX:005930 --start 2015-01-01`

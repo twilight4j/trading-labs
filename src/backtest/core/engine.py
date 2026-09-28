@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import pandas as pd
 
+from backtest.core.costs import commission_and_tax, validate_trade_costs
 from backtest.core.types import BacktestResult
 
 
@@ -10,15 +11,16 @@ def run_bar_by_bar(
     *,
     initial_cash: float = 10_000_000.0,
     fee_rate: float = 0.0015,
+    sell_tax_rate: float = 0.0,
 ) -> BacktestResult:
     """Simulate long-only all-in/all-out fills on next-bar open after signal flags.
 
     Expects columns: trade_date, open, close, golden_cross, death_cross.
+    ``fee_rate`` is commission on both sides. ``sell_tax_rate`` is sell-only tax.
     """
     if initial_cash <= 0:
         raise ValueError("initial_cash must be positive")
-    if fee_rate < 0:
-        raise ValueError("fee_rate must be >= 0")
+    validate_trade_costs(fee_rate, sell_tax_rate)
 
     required = {"trade_date", "open", "close", "golden_cross", "death_cross"}
     missing = required - set(prices.columns)
@@ -40,25 +42,34 @@ def run_bar_by_bar(
             cost_per_share = open_price * (1.0 + fee_rate)
             bought = cash / cost_per_share
             if bought > 0:
-                cash -= bought * cost_per_share
+                notional = bought * open_price
+                fee, tax = commission_and_tax(
+                    notional, side="buy", fee_rate=fee_rate, sell_tax_rate=sell_tax_rate
+                )
+                cash -= notional + fee
                 shares = bought
                 trade_rows.append({
                     "trade_date": trade_date,
                     "side": "buy",
                     "price": open_price,
                     "shares": shares,
-                    "fee": bought * open_price * fee_rate,
+                    "fee": fee,
+                    "tax": tax,
                     "cash_after": cash,
                 })
         elif pending == "sell" and shares > 0 and open_price > 0:
-            proceeds = shares * open_price * (1.0 - fee_rate)
-            fee = shares * open_price * fee_rate
+            notional = shares * open_price
+            fee, tax = commission_and_tax(
+                notional, side="sell", fee_rate=fee_rate, sell_tax_rate=sell_tax_rate
+            )
+            proceeds = notional - fee - tax
             trade_rows.append({
                 "trade_date": trade_date,
                 "side": "sell",
                 "price": open_price,
                 "shares": shares,
                 "fee": fee,
+                "tax": tax,
                 "cash_after": cash + proceeds,
             })
             cash += proceeds
@@ -84,4 +95,10 @@ def run_bar_by_bar(
 
     equity = pd.DataFrame(equity_rows)
     trades = pd.DataFrame(trade_rows)
-    return BacktestResult(equity=equity, trades=trades, initial_cash=initial_cash, fee_rate=fee_rate)
+    return BacktestResult(
+        equity=equity,
+        trades=trades,
+        initial_cash=initial_cash,
+        fee_rate=fee_rate,
+        sell_tax_rate=sell_tax_rate,
+    )

@@ -7,6 +7,7 @@ import typer
 
 from collector.config import Settings, load_environment
 from collector.ingestion.adjusted import AdjustedPricesService
+from collector.ingestion.consensus import ConsensusService
 from collector.ingestion.fundamentals import FundamentalsService
 from collector.ingestion.scheduler import serve as run_scheduler
 from collector.ingestion.service import IngestionService
@@ -19,8 +20,10 @@ load_environment()
 app = typer.Typer(help="KRX 전 종목 데이터 수집 CLI")
 fundamentals_app = typer.Typer(help="OpenDART 주요계정 수집 (일봉 파이프라인과 분리)")
 prices_app = typer.Typer(help="일봉 수정주가 재구축 (일별 raw 수집과 분리)")
+consensus_app = typer.Typer(help="WiseReport 컨센서스(추정 순이익)·업종·배당 스냅샷 수집")
 app.add_typer(fundamentals_app, name="fundamentals")
 app.add_typer(prices_app, name="prices")
+app.add_typer(consensus_app, name="consensus")
 
 
 def _settings(data_dir: Path) -> Settings:
@@ -138,6 +141,22 @@ def fundamentals_update(
         raise typer.Exit(code=2) from exc
     rows = sum(run.rows_written for run in runs)
     typer.echo(f"재무 갱신 완료: {len(runs)}개 파티션, {rows}행")
+
+
+@consensus_app.command("update")
+def consensus_update(
+    snapshot_date: str = typer.Option(date.today().isoformat(), "--snapshot-date", help="스냅샷 파티션 날짜 (기본: 오늘)"),
+    limit: int | None = typer.Option(None, "--limit", help="스모크용 종목 수 제한 (시총 상위부터)"),
+    data_dir: Path = typer.Option(Path("data/market-data")),
+) -> None:
+    """시총 1200억 이상 보통주의 컨센서스를 수집해 snapshot_date 파티션으로 저장합니다."""
+    result = ConsensusService(_settings(data_dir)).update(_parse_date(snapshot_date), limit=limit)
+    state = "게시" if result.published else "미게시(실패율 초과)"
+    typer.echo(
+        f"컨센서스 스냅샷 {result.snapshot_date}: {state}, 기준연도 {result.base_year}, "
+        f"대상 {result.universe_size}종목, 컨센서스 실패 {result.consensus_failed}, "
+        f"업종·배당 실패 {result.profile_failed} (실패율 {result.failure_rate:.2%})"
+    )
 
 
 if __name__ == "__main__":

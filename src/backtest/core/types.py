@@ -11,6 +11,7 @@ class BacktestResult:
     trades: pd.DataFrame
     initial_cash: float
     fee_rate: float
+    sell_tax_rate: float = 0.0
 
 
 @dataclass(frozen=True)

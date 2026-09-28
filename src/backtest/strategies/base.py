@@ -21,5 +21,6 @@ class Strategy(Protocol):
         *,
         initial_cash: float = 10_000_000.0,
         fee_rate: float = 0.0015,
+        sell_tax_rate: float = 0.0,
     ) -> BacktestResult:
         """Run this strategy; may use run_bar_by_bar or a custom loop."""

@@ -47,6 +47,7 @@ def run_backtest(
     end: date | None = None,
     initial_cash: float = 10_000_000.0,
     fee_rate: float = 0.0015,
+    sell_tax_rate: float = 0.0,
     **strategy_params: object,
 ) -> BacktestResult:
     """Load curated prices and run a registered strategy."""
@@ -55,6 +56,7 @@ def run_backtest(
         prices,
         initial_cash=initial_cash,
         fee_rate=fee_rate,
+        sell_tax_rate=sell_tax_rate,
     )
 
 
@@ -67,6 +69,7 @@ def run_universe_backtest(
     end: date | None = None,
     initial_cash: float = 10_000_000.0,
     fee_rate: float = 0.0015,
+    sell_tax_rate: float = 0.0,
     mdd_limit: float = -0.30,
     **strategy_params: object,
 ) -> RunPanel:
@@ -89,7 +92,12 @@ def run_universe_backtest(
             summary_rows.append(_error_row(security_id, row_meta, "no prices"))
             continue
         try:
-            result = strat.run(prices, initial_cash=initial_cash, fee_rate=fee_rate)
+            result = strat.run(
+                prices,
+                initial_cash=initial_cash,
+                fee_rate=fee_rate,
+                sell_tax_rate=sell_tax_rate,
+            )
             metrics = summarize_run(result)
             effective = is_effective(
                 float(metrics["excess_return"]),
