@@ -4,7 +4,6 @@ __pycache__/
 .pytest_cache/
 data/
 backup/
-backtest_plots/
 backtest_runs/
 .env
 .omc

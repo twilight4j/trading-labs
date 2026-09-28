@@ -1,0 +1,9 @@
+# 기준PER 설정 — labs API가 요청마다 다시 읽습니다.
+# 우선순위: [stock_per] 종목 오버라이드 → [sector_per] WICS 업종 PER → default_per
+default_per = 10
+
+[sector_per]
+# "반도체와반도체장비" = 12
+
+[stock_per]
+# "005930" = 12

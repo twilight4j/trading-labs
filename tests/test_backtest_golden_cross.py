@@ -7,6 +7,7 @@ import matplotlib
 matplotlib.use("Agg")
 
 import pandas as pd
+import pytest
 
 from backtest.analytics import plot_backtest, summarize
 from backtest.core import run_bar_by_bar
@@ -100,3 +101,34 @@ def test_strategy_registry_resolves_golden_cross() -> None:
     strat = get_strategy("golden_cross", fast=2, slow=3)
     result = strat.run(_synthetic_trend_prices(), initial_cash=1_000_000.0, fee_rate=0.0)
     assert len(result.trades) == 2
+
+
+def test_sell_tax_is_charged_only_on_sells() -> None:
+    result = run_golden_cross(
+        _synthetic_trend_prices(),
+        fast=2,
+        slow=3,
+        initial_cash=1_000_000.0,
+        fee_rate=0.01,
+        sell_tax_rate=0.02,
+    )
+    buy = result.trades.iloc[0]
+    sell = result.trades.iloc[1]
+    buy_notional = float(buy["shares"]) * float(buy["price"])
+    sell_notional = float(sell["shares"]) * float(sell["price"])
+    assert float(buy["fee"]) == pytest.approx(buy_notional * 0.01)
+    assert float(buy["tax"]) == 0.0
+    assert float(sell["fee"]) == pytest.approx(sell_notional * 0.01)
+    assert float(sell["tax"]) == pytest.approx(sell_notional * 0.02)
+    assert result.sell_tax_rate == 0.02
+    with pytest.raises(ValueError, match="sell_tax_rate"):
+        run_bar_by_bar(
+            pd.DataFrame({
+                "trade_date": pd.to_datetime(["2020-01-01"]),
+                "open": [100.0],
+                "close": [100.0],
+                "golden_cross": [False],
+                "death_cross": [False],
+            }),
+            sell_tax_rate=-0.01,
+        )

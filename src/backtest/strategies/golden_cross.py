@@ -49,8 +49,14 @@ class GoldenCrossStrategy:
         *,
         initial_cash: float = 10_000_000.0,
         fee_rate: float = 0.0015,
+        sell_tax_rate: float = 0.0,
     ) -> BacktestResult:
-        return run_bar_by_bar(self.prepare(prices), initial_cash=initial_cash, fee_rate=fee_rate)
+        return run_bar_by_bar(
+            self.prepare(prices),
+            initial_cash=initial_cash,
+            fee_rate=fee_rate,
+            sell_tax_rate=sell_tax_rate,
+        )
 
 
 def run_golden_cross(
@@ -60,9 +66,11 @@ def run_golden_cross(
     slow: int = 200,
     initial_cash: float = 10_000_000.0,
     fee_rate: float = 0.0015,
+    sell_tax_rate: float = 0.0,
 ) -> BacktestResult:
     return GoldenCrossStrategy(fast=fast, slow=slow).run(
         prices,
         initial_cash=initial_cash,
         fee_rate=fee_rate,
+        sell_tax_rate=sell_tax_rate,
     )
