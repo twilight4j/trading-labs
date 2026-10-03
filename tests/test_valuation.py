@@ -9,7 +9,7 @@ from typer.testing import CliRunner
 from collector.config import Settings
 from collector.ingestion.consensus import ConsensusService
 from collector.storage import Lakehouse
-from valuation.api import create_app
+from valuation.api import API_PREFIX, create_app
 from valuation.cli import app as labs_cli
 from valuation.per import PerConfig
 from valuation.screener import EOK, FairValueTable, build_fair_value_rows, fair_value
@@ -152,6 +152,21 @@ def test_build_rows_applies_market_cap_floor_and_per_precedence():
 # --- API ---------------------------------------------------------------------
 
 
+FAIR_VALUE = f"{API_PREFIX}/valuation/fair-value"
+TOKEN = "test-token-0123456789"
+
+
+@pytest.fixture(autouse=True)
+def api_token(monkeypatch):
+    """Tests own the environment: skip the repo `.env` and use a test token."""
+    monkeypatch.setattr("collector.config._ENV_LOADED", True)
+    monkeypatch.setenv("UI_API_TOKEN", TOKEN)
+
+
+def authed(app) -> TestClient:
+    return TestClient(app, headers={"Authorization": f"Bearer {TOKEN}"})
+
+
 @pytest.fixture
 def seeded_settings(tmp_path: Path) -> Settings:
     settings = Settings(data_dir=tmp_path / "market-data")
@@ -161,9 +176,9 @@ def seeded_settings(tmp_path: Path) -> Settings:
 
 def test_api_returns_fair_value_rows_from_latest_published_snapshot(seeded_settings):
     ConsensusService(seeded_settings, provider=FakeWiseReport()).update(date(2026, 9, 26))
-    client = TestClient(create_app(seeded_settings))
+    client = authed(create_app(seeded_settings))
 
-    response = client.get("/api/v1/valuation/fair-value")
+    response = client.get(FAIR_VALUE)
 
     assert response.status_code == 200
     payload = response.json()
@@ -195,11 +210,11 @@ def test_api_returns_fair_value_rows_from_latest_published_snapshot(seeded_setti
 def test_api_reads_per_config_on_each_request(seeded_settings, tmp_path):
     ConsensusService(seeded_settings, provider=FakeWiseReport()).update(date(2026, 9, 26))
     per_path = tmp_path / "per.toml"
-    client = TestClient(create_app(seeded_settings, per_path))
-    assert client.get("/api/v1/valuation/fair-value").json()["rows"][0]["base_per"] == 10
+    client = authed(create_app(seeded_settings, per_path))
+    assert client.get(FAIR_VALUE).json()["rows"][0]["base_per"] == 10
 
     per_path.write_text('[stock_per]\n"005930" = 20\n', encoding="utf-8")
-    samsung = client.get("/api/v1/valuation/fair-value").json()["rows"][0]
+    samsung = client.get(FAIR_VALUE).json()["rows"][0]
     assert samsung["base_per"] == 20
     assert samsung["fair_cap_y2"] == pytest.approx(4_744_728.4 * 20)
 
@@ -208,7 +223,7 @@ def test_api_returns_503_on_malformed_per_config(seeded_settings, tmp_path):
     ConsensusService(seeded_settings, provider=FakeWiseReport()).update(date(2026, 9, 26))
     per_path = tmp_path / "per.toml"
     per_path.write_text("default_per = [broken", encoding="utf-8")
-    response = TestClient(create_app(seeded_settings, per_path)).get("/api/v1/valuation/fair-value")
+    response = authed(create_app(seeded_settings, per_path)).get(FAIR_VALUE)
     assert response.status_code == 503
     assert "기준PER 설정 오류" in response.json()["detail"]
 
@@ -220,13 +235,38 @@ def test_payload_turns_pandas_missing_values_into_null():
 
 
 def test_api_returns_503_without_published_snapshot(seeded_settings):
-    client = TestClient(create_app(seeded_settings))
-    response = client.get("/api/v1/valuation/fair-value")
+    client = authed(create_app(seeded_settings))
+    response = client.get(FAIR_VALUE)
     assert response.status_code == 503
     assert "consensus update" in response.json()["detail"]
 
     ConsensusService(seeded_settings, provider=FakeWiseReport(fail_consensus={"247540", "000020"})).update(date(2026, 9, 26))
-    assert client.get("/api/v1/valuation/fair-value").status_code == 503
+    assert client.get(FAIR_VALUE).status_code == 503
+
+
+def test_api_rejects_missing_or_wrong_token_in_the_engine_error_shape(seeded_settings):
+    app = create_app(seeded_settings)
+    for headers in ({}, {"Authorization": "Bearer wrong-token-0123456789"}, {"Authorization": TOKEN}):
+        response = TestClient(app, headers=headers).get(FAIR_VALUE)
+        assert response.status_code == 401
+        assert response.headers["www-authenticate"] == "Bearer"
+        body = response.json()
+        assert body["code"] == "unauthorized"
+        assert body["errors"] == [{"field": None, "message": body["detail"]}]
+
+
+def test_api_stays_closed_without_a_configured_token(seeded_settings, monkeypatch):
+    monkeypatch.setenv("UI_API_TOKEN", "short")
+    response = authed(create_app(seeded_settings)).get(FAIR_VALUE)
+    assert response.status_code == 503
+    assert response.json()["code"] == "auth_not_configured"
+
+    monkeypatch.delenv("UI_API_TOKEN")
+    assert authed(create_app(seeded_settings)).get(FAIR_VALUE).json()["code"] == "auth_not_configured"
+
+
+def test_old_unprefixed_path_is_gone(seeded_settings):
+    assert authed(create_app(seeded_settings)).get("/api/v1/valuation/fair-value").status_code == 404
 
 
 def test_labs_api_serve_defaults_to_port_8100(monkeypatch):

@@ -45,12 +45,17 @@ def is_preferred_share(names: pd.Series, known_names: set[str]) -> pd.Series:
 
 
 def read_latest_prices(lakehouse: Lakehouse) -> tuple[str | None, pd.DataFrame]:
-    """Latest `daily_prices` partition as (trade_date, frame)."""
-    partitions = lakehouse.list_curated_partitions("daily_prices", prefix="trade_date=")
-    if not partitions:
-        return None, pd.DataFrame()
-    latest = partitions[-1]
-    return latest.removeprefix("trade_date="), lakehouse.read_curated_partition("daily_prices", latest)
+    """Latest trading-day `daily_prices` partition as (trade_date, frame).
+
+    pykrx returns every stock with a zero market cap on market holidays and those days are stored as partitions
+    too (e.g. 2026-09-24·25 추석). A partition without a single positive market cap is skipped so valuation never
+    divides by a holiday's zeros.
+    """
+    for partition in reversed(lakehouse.list_curated_partitions("daily_prices", prefix="trade_date=")):
+        frame = lakehouse.read_curated_partition("daily_prices", partition)
+        if not frame.empty and frame["market_cap"].fillna(0).gt(0).any():
+            return partition.removeprefix("trade_date="), frame
+    return None, pd.DataFrame()
 
 
 def latest_published_snapshot(lakehouse: Lakehouse, before: str | None = None) -> str | None:

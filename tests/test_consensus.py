@@ -16,6 +16,7 @@ from collector.ingestion.consensus import (
     ConsensusService,
     is_preferred_share,
     latest_published_snapshot,
+    read_latest_prices,
     read_snapshot,
 )
 from collector.ingestion.scheduler import build_scheduler
@@ -154,6 +155,22 @@ def test_select_universe_uses_latest_prices_common_shares_and_market_cap_floor(s
 
     limited = ConsensusService(settings, provider=FakeWiseReport()).select_universe(limit=1)
     assert limited["ticker"].tolist() == ["005930"]
+
+
+def test_latest_prices_skip_a_holiday_partition_of_zero_market_caps(settings):
+    # pykrx stores market holidays as every stock with a zero market cap (2026-09-24·25 추석 in the real data).
+    lakehouse = Lakehouse(settings)
+    holiday = lakehouse.read_curated_partition("daily_prices", "trade_date=2026-09-25")
+    holiday = holiday.assign(trade_date=pd.Timestamp("2026-09-28"), market_cap=0)
+    lakehouse.replace_curated_partition("daily_prices", holiday, "trade_date=2026-09-28")
+
+    trade_date, prices = read_latest_prices(lakehouse)
+
+    assert trade_date == "2026-09-25"
+    assert prices["market_cap"].gt(0).all()
+    assert ConsensusService(settings, provider=FakeWiseReport()).select_universe()["ticker"].tolist() == [
+        "005930", "247540", "000020",
+    ]
 
 
 def test_update_writes_snapshot_raw_and_run_record(settings):

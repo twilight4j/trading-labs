@@ -23,7 +23,7 @@ flowchart LR
   Svc --> Est["curated/consensus_estimates\nsnapshot_date="]
   Svc --> Prof["curated/consensus_profiles\nsnapshot_date="]
   Svc --> Manifest["metadata/consensus_snapshots"]
-  Est --> API["labs-api :8100\n/api/v1/valuation/fair-value"]
+  Est --> API["labs-api :8100\n/api/labs/v1/valuation/fair-value"]
   Prof --> API
   Prices --> API
   API --> UI["trading-ui 적정주가 분석\n(Vite 프록시)"]
@@ -65,6 +65,7 @@ uv run market-data consensus update --limit 5 --data-dir data/market-data/test  
 ## 계산 규칙
 
 - **P:** market-data `daily_prices` 최신 거래일의 `market_cap`(원)을 1e8로 나눈 값입니다. 응답의 `price_date`가 그 날짜입니다.
+  - 휴장일 파티션은 건너뜁니다. pykrx 가 휴장일에도 전 종목을 시총·거래량 0 으로 돌려줘 그 날짜의 파티션이 생기기 때문입니다(2026-09-24·25 추석 등 2010년부터 248일). 시총이 하나도 0 보다 크지 않은 파티션은 거래일로 보지 않습니다(`read_latest_prices`). 컨센서스 대상 선정도 같은 함수를 씁니다.
 - **기준연도(Y0):** 스냅샷에서 가장 많은 종목의 첫 (E) 연도입니다. 실적이 공시되면 자연스럽게 다음 해로 넘어가며, 컬럼명(26/28 → 27/29)도 함께 바뀝니다.
 - **표 포함 조건:** Y2(=Y0+2) 추정치가 있고, 현재 시총이 1,200억 이상인 종목입니다. Y0 추정치가 없으면 Y0 컬럼은 비워 둡니다.
 - **음수 E:** 그대로 계산합니다. 그래서 상승여력이 −100%보다 낮을 수 있습니다.
@@ -89,7 +90,15 @@ default_per = 10
 uv run labs-api serve --data-dir data/market-data        # 127.0.0.1:8100
 ```
 
-`GET /api/v1/valuation/fair-value`
+`GET /api/labs/v1/valuation/fair-value`
+
+모든 labs API 는 `/api/labs/v1` 아래에 둡니다. trading-ui 가 프록시 규칙 하나로 labs 전체를 넘기고, trading-engine API(`/api/v1`)와 섞이지 않게 하기 위해서입니다.
+
+**인증:** 모든 요청에 `Authorization: Bearer <UI_API_TOKEN>` 이 필요합니다. trading-ui 는 ngrok 으로 밖에 열려 있고 Vite 프록시를 거친 요청은 127.0.0.1 에서 온 것으로 보이므로, 바인딩 주소로는 밖을 가릴 수 없기 때문입니다. 토큰은 trading-engine API 서버와 같은 값입니다. 화면에서 넣는 토큰이 하나로 끝납니다.
+
+- 토큰이 없거나 16자보다 짧으면 모든 요청을 `503 auth_not_configured` 로 거부합니다(fail-closed).
+- 토큰이 틀리면 `401 unauthorized` 입니다.
+- 오류는 trading-engine 과 같은 `{detail, code, errors}` 모양입니다(`src/valuation/errors.py`).
 
 ```json
 {
@@ -106,13 +115,17 @@ uv run labs-api serve --data-dir data/market-data        # 127.0.0.1:8100
 ```
 
 - 행은 `upside_y2` 내림차순으로 정렬되고, 결측값은 `null`입니다.
-- 게시된 스냅샷이나 일봉이 없거나, 기준PER TOML이 잘못되었으면 `503`과 안내 메시지를 돌려줍니다.
+- 게시된 스냅샷이나 일봉이 없으면 `503 unavailable`, 기준PER TOML이 잘못되었으면 `503 config` 와 안내 메시지를 돌려줍니다.
+
+## 상시 실행
+
+이 맥에서는 trading-engine 저장소의 launchd 스크립트가 `labs-api`(이 API)와 `labs-collector`(`market-data serve`)를 서비스로 띄웁니다. 등록·상태·로그는 trading-engine 의 상시 운영 문서에 있습니다.
 
 ## trading-ui
 
-- `vite.config.js`가 `/api/v1/valuation`을 `localhost:8100`으로 프록시합니다. 기존 `/api`(trading-agent :8000) 규칙보다 먼저 선언되어 있습니다.
-- '적정주가 분석' 메뉴는 `src/views/FairValueScreenerView.jsx`입니다.
-  - 계획서 표 순서대로 컬럼을 보여 주고, 8개 컬럼을 정렬할 수 있습니다.
-  - 당기순이익(지배) 두 컬럼은 기본으로 숨기고, 토글로 보여 줍니다.
+- `vite.config.js`가 `/api/labs`를 `127.0.0.1:8100`으로 프록시합니다. trading-engine 으로 가는 `/api` 규칙보다 먼저 선언되어 있습니다.
+- '적정주가 분석' 화면은 `src/screens/FairPrice.jsx`입니다.
+  - 연도 표시(26·28)는 응답의 `base_year` 를 따릅니다.
+  - 표의 기준 PER 은 이 API 의 `base_per`(TOML)입니다. 화면의 PER 입력칸은 저장하지 않는 "전체 PER 바꿔 보기"입니다.
 
 투자 조언을 제공하지 않습니다.

@@ -45,7 +45,7 @@ uv run market-data fundamentals update --year 2025 --limit 3 --data-dir data/mar
 ```bash
 # 컨센서스 스냅샷 (serve가 주 1회 자동 실행, 수동 실행도 가능)
 uv run market-data consensus update
-# trading-ui용 API (127.0.0.1:8100, Vite 프록시 /api/v1/valuation)
+# trading-ui용 API (127.0.0.1:8100, Vite 프록시 /api/labs) — .env 의 UI_API_TOKEN 이 있어야 열립니다
 caffeinate -sm uv run labs-api serve
 ```
 
