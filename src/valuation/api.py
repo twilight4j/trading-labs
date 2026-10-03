@@ -12,7 +12,7 @@ from valuation.errors import CONFIG, UNAVAILABLE, ApiError
 from valuation.per import PerConfig
 from valuation.screener import FairValueUnavailable, load_fair_value_table
 
-# trading-ui proxies everything under this prefix to labs (one rule, apart from trading-engine's `/api/v1`).
+# trading-ui proxies everything under this prefix to labs (one rule; trading-engine's API is `/api/engine/v1`).
 API_PREFIX = "/api/labs/v1"
 
 
