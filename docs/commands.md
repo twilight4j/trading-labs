@@ -96,8 +96,6 @@ uv run market-data consensus update --limit 5 --data-dir data/market-data/test
 
 ## 6. 백테스트와 노트북
 
-> **2026-10-04 현재 이 저장소에서는 실행되지 않습니다.** `backtest` 명령과 노트북이 부르는 `backtest.data` 모듈(`src/backtest/data/`)이 git 에 없습니다. `.gitignore` 의 `data` 규칙이 데이터 폴더뿐 아니라 그 소스 폴더까지 무시해서 한 번도 커밋되지 않았습니다. 규칙은 루트의 `/data/` 로 좁혔고(2026-10-04), 모듈을 되살리는 일이 남았습니다.
-
 ```bash
 uv run backtest run --strategy golden_cross --security-id KRX:005930 --fast 50 --slow 200 --start 2015-01-01
 
@@ -113,6 +111,6 @@ uv run jupyter lab           # 커널은 프로젝트 .venv
 uv run --group dev pytest
 ```
 
-위와 같은 이유로 백테스트 테스트 네 파일(`tests/test_backtest_*.py`)은 수집 단계에서 실패합니다. 나머지만 돌리려면 파일마다 `--ignore=tests/test_backtest_api.py` 처럼 뺍니다(수집·적정주가·API 테스트 64개).
+수집·적정주가·API·백테스트 테스트가 모두 돕니다(2026-10-04 현재 114개). 실제 데이터나 네트워크를 쓰지 않습니다.
 
 투자 조언을 제공하지 않습니다.
