@@ -2,8 +2,8 @@
 __pycache__/
 *.py[cod]
 .pytest_cache/
-data/
-data
+# 수집 데이터 — 저장소 루트의 data 만. 앞의 / 가 없으면 src/backtest/data/ 같은 소스 폴더까지 무시한다
+/data/
 backup/
 backtest_runs/
 .env

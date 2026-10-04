@@ -32,6 +32,8 @@ cp .env.example .env
 
 데이터는 `data/market-data` 에 쌓입니다(git 에 올리지 않습니다). 다른 곳에 두려면 명령마다 `--data-dir`.
 
+`data` 는 실제 폴더로 두고, 데이터를 저장소 밖에 두려면 그 안의 `market-data` 를 심볼릭 링크로 만듭니다(이 맥이 그렇습니다). `data` 자체를 링크로 만들지 않습니다 — git 은 링크를 폴더로 보지 않아 무시 규칙이 꼬입니다.
+
 ## 2. 처음 채우기 (한 번)
 
 오래 걸리므로 맥이 잠들지 않게 `caffeinate -sm` 으로 감쌉니다.
@@ -94,7 +96,7 @@ uv run market-data consensus update --limit 5 --data-dir data/market-data/test
 
 ## 6. 백테스트와 노트북
 
-> **2026-10-04 현재 이 저장소에서는 실행되지 않습니다.** `backtest` 명령과 노트북이 부르는 `backtest.data` 모듈(`src/backtest/data/`)이 git 에 없습니다. `.gitignore` 의 `data` 규칙이 데이터 폴더뿐 아니라 그 소스 폴더까지 무시해서 한 번도 커밋되지 않았습니다. 모듈을 되살리고 규칙을 루트의 `/data` 로 좁혀야 합니다.
+> **2026-10-04 현재 이 저장소에서는 실행되지 않습니다.** `backtest` 명령과 노트북이 부르는 `backtest.data` 모듈(`src/backtest/data/`)이 git 에 없습니다. `.gitignore` 의 `data` 규칙이 데이터 폴더뿐 아니라 그 소스 폴더까지 무시해서 한 번도 커밋되지 않았습니다. 규칙은 루트의 `/data/` 로 좁혔고(2026-10-04), 모듈을 되살리는 일이 남았습니다.
 
 ```bash
 uv run backtest run --strategy golden_cross --security-id KRX:005930 --fast 50 --slow 200 --start 2015-01-01
