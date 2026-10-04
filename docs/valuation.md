@@ -26,7 +26,7 @@ flowchart LR
   Est --> API["labs-api :8100\n/api/labs/v1/valuation/fair-value"]
   Prof --> API
   Prices --> API
-  API --> UI["trading-ui 적정주가 분석\n(Vite 프록시)"]
+  API --> UI["trading-ui 적정주가 분석\n(게이트웨이를 거쳐)"]
 ```
 
 ## 수집 (`market-data consensus update`)
@@ -92,9 +92,9 @@ uv run labs-api serve --data-dir data/market-data        # 127.0.0.1:8100
 
 `GET /api/labs/v1/valuation/fair-value`
 
-모든 labs API 는 `/api/labs/v1` 아래에 둡니다. trading-ui 가 프록시 규칙 하나로 labs 전체를 넘기고, trading-engine API(`/api/engine/v1`)와 섞이지 않게 하기 위해서입니다.
+모든 labs API 는 `/api/labs/v1` 아래에 둡니다. 화면 앞의 게이트웨이(trading-gateway)가 경로 앞부분(`/api/labs`)만 보고 labs 전체를 넘기고, trading-engine API(`/api/engine/v1`)와 섞이지 않게 하기 위해서입니다.
 
-**인증:** 모든 요청에 `Authorization: Bearer <UI_API_TOKEN>` 이 필요합니다. trading-ui 는 ngrok 으로 밖에 열려 있고 Vite 프록시를 거친 요청은 127.0.0.1 에서 온 것으로 보이므로, 바인딩 주소로는 밖을 가릴 수 없기 때문입니다. 토큰은 trading-engine API 서버와 같은 값입니다. 화면에서 넣는 토큰이 하나로 끝납니다.
+**인증:** 모든 요청에 `Authorization: Bearer <UI_API_TOKEN>` 이 필요합니다. 화면은 ngrok 으로 밖에 열려 있고 게이트웨이를 거친 요청은 127.0.0.1 에서 온 것으로 보이므로, 바인딩 주소로는 밖을 가릴 수 없기 때문입니다. 토큰은 trading-engine API 서버와 같은 값입니다. 화면에서 넣는 토큰이 하나로 끝납니다.
 
 - 토큰이 없거나 16자보다 짧으면 모든 요청을 `503 auth_not_configured` 로 거부합니다(fail-closed).
 - 토큰이 틀리면 `401 unauthorized` 입니다.
@@ -123,7 +123,7 @@ uv run labs-api serve --data-dir data/market-data        # 127.0.0.1:8100
 
 ## trading-ui
 
-- `vite.config.js`가 `/api/labs`를 `127.0.0.1:8100`으로, `/api/engine`을 trading-engine API 서버로 프록시합니다.
+- 게이트웨이(trading-gateway)가 `/api/labs`를 이 API 로, `/api/engine`을 trading-engine API 서버로 넘깁니다. 주소는 trading-gateway 의 `config/gateway.toml` 이 정합니다(2026-10-04 까지는 trading-ui 의 Vite 프록시가 했습니다).
 - '적정주가 분석' 화면은 `src/screens/FairPrice.jsx`입니다.
   - 연도 표시(26·28)는 응답의 `base_year` 를 따릅니다.
   - 표의 기준 PER 은 이 API 의 `base_per`(TOML)입니다. 화면의 PER 입력칸은 저장하지 않는 "전체 PER 바꿔 보기"입니다.

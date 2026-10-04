@@ -1,6 +1,6 @@
 """Access guard — every labs API request needs the trading-ui token.
 
-trading-ui serves its screen through ngrok and its Vite proxy forwards `/api/labs` here, so requests arrive from
+The screen is open through ngrok and the gateway (trading-gateway) forwards `/api/labs` here, so requests arrive from
 127.0.0.1 and the bind address cannot tell the outside from this Mac. The token is the same `UI_API_TOKEN` that
 trading-engine's API server checks (one token for the whole screen). Without it the API stays closed (fail-closed).
 """

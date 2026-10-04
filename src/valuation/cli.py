@@ -14,7 +14,7 @@ app = typer.Typer(help="trading-labs 가치투자(적정시총·상승여력) AP
 
 @app.callback()
 def main() -> None:
-    """trading-ui가 Vite 프록시(/api/labs)로 호출하는 API. 모든 요청에 UI_API_TOKEN 이 필요합니다."""
+    """trading-ui가 게이트웨이(trading-gateway)를 거쳐 /api/labs 로 호출하는 API. 모든 요청에 UI_API_TOKEN 이 필요합니다."""
 
 
 @app.command()
