@@ -1,58 +1,28 @@
 # Trading Labs
 
-한국 전 종목 일봉·재무(주요계정) 데이터 수집·보관을 위한 연구용 파이프라인입니다.
+한국 주식의 일봉·재무·컨센서스를 모아 두고, 그 데이터로 적정주가를 계산하고 전략을 백테스트하는 연구용 저장소입니다.
+trading-ui 의 적정주가 분석·데이터 수집 화면이 쓰는 API 도 여기 있습니다.
 
-**준비**
+| 구성 | 하는 일 |
+|---|---|
+| 수집 `market-data` | 일봉(pykrx)·재무(OpenDART)·컨센서스(WiseReport)를 `data/market-data` 에 쌓습니다 |
+| labs API `labs-api serve` | 적정주가·수집 상태 API(127.0.0.1:8100, 토큰 필요)와 수집 스케줄러를 한 프로세스로 돌립니다 |
+| 백테스트 `backtest` | 쌓인 일봉으로 단일 종목 전략을 돌려 봅니다. 노트북으로도 봅니다. 지금은 모듈 하나가 빠져 실행되지 않습니다([명령 모음](docs/commands.md#6-백테스트와-노트북)) |
+
+## Quickstart
+
+Python 3.11+ 와 [uv](https://docs.astral.sh/uv/) 가 필요합니다.
+
 ```bash
 uv sync --group dev
-cp .env.example .env   # KRX_ID, KRX_PW, DART_API_KEY 입력
+cp .env.example .env      # 값마다 설명이 파일에 있습니다
+uv run labs-api serve     # API 와 수집 스케줄러 — 하나만 띄웁니다
 ```
 
-**노트북 백테스트**
-```bash
-uv sync --group notebook
-uv run jupyter lab
-```
-커널은 프로젝트 `.venv`를 고릅니다. 예제: [notebooks/golden_cross.ipynb](notebooks/golden_cross.ipynb), 유니버스 분석: [notebooks/universe_golden_cross.ipynb](notebooks/universe_golden_cross.ipynb). 상세는 [docs/notebooks.md](docs/notebooks.md).
+데이터가 비어 있으면 먼저 채웁니다. 처음 채우기부터 수동 갱신·백테스트까지의 명령은 [명령 모음](docs/commands.md)에 있습니다.
 
-**1) backfill (최초·대량 수집)**
-```bash
-# 일봉
-caffeinate -sm uv run market-data backfill --start 2010-01-01
+## 문서
 
-# 재무 — corp 매핑 후, 한도 있으면 연 단위로 끊기
-uv run market-data fundamentals sync-corp-codes
-caffeinate -sm uv run market-data fundamentals backfill --start-year 2023 --end-year 2023
-```
-
-**2) 스케줄 (추가 등록 · 이후 유지)**
-```bash
-# 일봉(평일 18:30)·컨센서스(토 09:00): labs API 프로세스가 스케줄러를 함께 돌린다 — 하나만 띄운다
-caffeinate -sm uv run labs-api serve
-
-# 재무: 분기·공시 후 가끔 (매일 X). 기본=올해
-caffeinate -sm uv run market-data fundamentals update
-```
-
-**스모크** (`data/market-data/test`)
-```bash
-uv run market-data backfill --start 2026-07-20 --end 2026-07-20 --data-dir data/market-data/test
-uv run market-data fundamentals sync-corp-codes --data-dir data/market-data/test
-uv run market-data fundamentals update --year 2025 --limit 3 --data-dir data/market-data/test
-```
-
-**3) 가치투자 적정시총·상승여력** — [docs/valuation.md](docs/valuation.md)
-```bash
-# 컨센서스 스냅샷 (labs-api 가 주 1회 자동 실행, 수동 실행도 가능)
-uv run market-data consensus update
-# trading-ui용 API (127.0.0.1:8100, Vite 프록시 /api/labs) — .env 의 UI_API_TOKEN 이 있어야 열립니다.
-# 위 스케줄과 같은 프로세스다. 화면의 데이터 수집에서 지금 실행·스케줄 켜고 끄기 — docs/collection.md
-uv run labs-api serve
-```
-
-- 가격(`pykrx`): `.env`의 `KRX_ID` / `KRX_PW`
-- 재무(`OpenDART`): `.env`의 `DART_API_KEY`
-- 수정주가 재구축: `uv run market-data prices rebuild-adjusted --security-id KRX:005930 --start 2015-01-01`
-- 구조·CLI·한도/재개: [docs/](docs/README.md)
+구조와 규칙은 [docs/](docs/index.md)에 있습니다 — 명령 모음, 수집 스케줄, 적정주가 계산, 데이터 흐름, 백테스트.
 
 투자 조언을 제공하지 않습니다.

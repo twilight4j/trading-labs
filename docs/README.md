@@ -9,10 +9,11 @@ generated: { by: agent/cursor, at: 2026-08-09T08:34:00Z }
 
 # 문서 목록
 
-루트 [README.md](/README.md)는 퀵 커맨드만 둡니다. 본 디렉터리의 지식 문서는 [index.md](index.md)를 보세요.
+루트 [README.md](/README.md)는 개요와 Quickstart 만 둡니다. 명령은 [명령 모음](commands.md)에 있습니다. 본 디렉터리의 지식 문서는 [index.md](index.md)를 보세요.
 
 | 문서 | 내용 |
 |------|------|
+| [명령 모음](commands.md) | 준비·처음 채우기·상시 실행·수동 갱신·스모크·백테스트·테스트 |
 | [프로젝트 구조](structure.md) | 디렉터리·모듈 역할, 데이터 레이어 |
 | [데이터 흐름](flow.md) | CLI → 수집 → 저장, 재무·수정주가 재구축 |
 | [수집 스케줄과 화면에서의 실행](collection.md) | labs API 프로세스의 스케줄러, 일봉 따라잡기·휴장일, 수집 API |

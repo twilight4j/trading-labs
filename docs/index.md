@@ -4,6 +4,7 @@ okf_version: "0.2"
 
 # Collector
 
+* [명령 모음](commands.md) - 준비·처음 채우기·상시 실행·수동 갱신·스모크·백테스트·테스트 명령
 * [프로젝트 구조](structure.md) - 디렉터리·모듈 역할과 `data/market-data` 레이어
 * [데이터 흐름](flow.md) - CLI → 수집 → 저장, 재무·수정주가 재구축
 * [수집 스케줄과 화면에서의 실행](collection.md) - labs API 프로세스의 스케줄러, 일봉 따라잡기·휴장일 규칙, 수집 상태·실행 API
@@ -16,4 +17,4 @@ okf_version: "0.2"
 
 # 진입
 
-* 루트 [README.md](/README.md) - 퀵 커맨드만
+* 루트 [README.md](/README.md) - 개요와 Quickstart 만
