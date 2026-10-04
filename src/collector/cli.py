@@ -9,7 +9,6 @@ from collector.config import Settings, load_environment
 from collector.ingestion.adjusted import AdjustedPricesService
 from collector.ingestion.consensus import ConsensusService
 from collector.ingestion.fundamentals import FundamentalsService
-from collector.ingestion.scheduler import serve as run_scheduler
 from collector.ingestion.service import IngestionService
 from collector.providers import DartQuotaExceeded
 from collector.quality import validate_prices
@@ -49,8 +48,10 @@ def backfill(
 
 @app.command()
 def update(data_dir: Path = typer.Option(Path("data/market-data"))) -> None:
-    run = IngestionService(_settings(data_dir)).update()
-    typer.echo("갱신할 거래일이 없습니다." if run is None else f"완료: {run.run_id} ({run.rows_written}행)")
+    """마지막 거래일 다음 날부터 빠진 평일을 모두 채웁니다. 휴장일은 저장하지 않고, 장 마감(18:30) 전에는 어제까지만."""
+    runs = IngestionService(_settings(data_dir)).catch_up()
+    rows = sum(run.rows_written for run in runs)
+    typer.echo("갱신할 거래일이 없습니다." if not runs else f"완료: {len(runs)}일 ({rows}행)")
 
 
 @app.command()
@@ -62,11 +63,6 @@ def validate(date_: str = typer.Option(..., "--date"), data_dir: Path = typer.Op
     typer.echo(f"검사 행: {len(subset)}, 오류: {len(issues)}")
     for issue in issues:
         typer.echo(f"[{issue.severity}] {issue.check}: {issue.message}")
-
-
-@app.command()
-def serve(data_dir: Path = typer.Option(Path("data/market-data"))) -> None:
-    run_scheduler(_settings(data_dir))
 
 
 @prices_app.command("rebuild-adjusted")

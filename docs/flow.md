@@ -32,12 +32,12 @@ flowchart LR
 # CLI 진입 → 서비스
 
 ```text
-market-data backfill|update|validate|serve
+market-data backfill|update|validate
         │
         ▼
    Settings(data_dir)
         │
-        ├─ backfill / update / serve ──► IngestionService
+        ├─ backfill / update ──────────► IngestionService
         └─ validate ───────────────────► Lakehouse.read_curated → validate_prices
 
 market-data fundamentals sync-corp-codes|backfill|update
@@ -54,9 +54,8 @@ market-data prices rebuild-adjusted
 | 명령 | 호출 | 동작 요약 |
 |------|------|-----------|
 | `backfill --start --end` | `IngestionService.backfill` | start~end 평일마다 `ingest_day` |
-| `update` | `IngestionService.update` | curated 마지막일+1(평일) 1회 수집. 없으면 no-op |
+| `update` | `IngestionService.catch_up` | 마지막 거래일 다음 날부터 빠진 평일을 모두 수집. 휴장일은 저장하지 않음. 없으면 no-op |
 | `validate --date` | `validate_prices` | curated만 읽고 검사. 쓰기 없음 |
-| `serve` | `scheduler.serve` | 월–금 18:30 KST에 `update` 반복 |
 | `prices rebuild-adjusted` | `AdjustedPricesService.rebuild` | 종목별 수정주가로 `*_adjusted` 채움. `--security-id`, `--limit` |
 | `fundamentals sync-corp-codes` | `FundamentalsService.sync_corp_codes` | ticker→`dart_corp_code` 매핑 |
 | `fundamentals backfill` | `FundamentalsService.backfill` | 연·보고서별 주요계정 수집. `--skip-existing`(기본 ON), `--reprt-code`, `--limit` |
@@ -100,8 +99,8 @@ uv run market-data fundamentals backfill --start-year 2020 --end-year 2026
 
 | 용도 | 명령 | 주기 |
 |------|------|------|
-| 일봉 유지 | `market-data serve` | 상시 프로세스. 평일 18:30 KST에 `update` |
-| 일봉 1회 | `market-data update` | 필요 시 수동. `serve`와 중복 등록하지 말 것 |
+| 일봉·컨센서스 유지 | `labs-api serve` | 상시 프로세스. API 와 스케줄러가 한 프로세스 — 평일 18:30 일봉, 토 09:00 컨센서스 ([수집 스케줄](collection.md)) |
+| 일봉 1회 | `market-data update` | 필요 시 수동. 빠진 거래일을 모두 채움 |
 | 재무 유지 | `market-data fundamentals update` | **분기·공시 후**. 올해 보고서 전 종목 재수집(한도 큼). 매일 비권장 |
 
 # 일별 수집 (`ingest_day`)
@@ -158,15 +157,15 @@ backfill(start, end)
   day = start … end
   weekday만 ingest_day(day)   # 공휴일은 스킵하지 않음(평일만 필터)
 
-update(today=오늘)
-  curated 비어 있음 → ingest_day(today)
-  아니면 last = max(trade_date)
-       candidate = last+1 이후 첫 평일
-       candidate ≤ today → ingest_day(candidate)
-       아니면 None (갱신 없음)
+catch_up(end=settled_date)        # settled_date: 18:30 이 지났으면 오늘, 아니면 어제
+  curated 비어 있음 → ingest_day(end)
+  아니면 last = 마지막 거래일 파티션(휴장일 파티션은 건너뜀)
+       last+1 … end 의 평일마다 ingest_day
+           전 종목 거래량 0 → 휴장일: 저장하지 않음(skipped)
+       저장한 날이 없고 휴장일만 있었으면 skipped 기록 하나
 ```
 
-`serve`는 위 `update`를 cron으로 감싼 형태입니다. 장 마감 후(기본 18:30) 하루 치만 따라잡습니다.
+스케줄(평일 18:30)과 화면의 "지금 실행"도 같은 `catch_up` 을 부릅니다. 규칙과 이유는 [수집 스케줄](collection.md).
 
 # 저장·조회 흐름
 

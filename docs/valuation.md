@@ -15,7 +15,7 @@ generated: { by: claude-code, at: 2026-09-28T00:00:00+09:00 }
 
 ```mermaid
 flowchart LR
-  Cron["serve: consensus-weekly"] --> Svc["ConsensusService"]
+  Cron["labs-api: consensus-weekly"] --> Svc["ConsensusService"]
   CLI["market-data consensus update"] --> Svc
   Prices["curated/daily_prices\n(최신 trade_date)"] --> Svc
   Svc --> V3["WiseReport v3\nc1050001_data.aspx?flag=2"]
@@ -60,7 +60,7 @@ uv run market-data consensus update --limit 5 --data-dir data/market-data/test  
 
 ## 스케줄
 
-`market-data serve`가 평일 18:30 일봉 갱신과 함께 **주 1회** 컨센서스를 수집합니다. 기본값은 토요일 09:00 KST이고, `Settings.consensus_schedule_day/hour/minute`로 바꿀 수 있습니다.
+`labs-api serve`의 스케줄러가 평일 18:30 일봉 갱신과 함께 **주 1회** 컨센서스를 수집합니다([수집 스케줄](collection.md)). 기본값은 토요일 09:00 KST이고, `Settings.consensus_schedule_day/hour/minute`로 바꿀 수 있습니다.
 
 ## 계산 규칙
 
@@ -119,7 +119,7 @@ uv run labs-api serve --data-dir data/market-data        # 127.0.0.1:8100
 
 ## 상시 실행
 
-이 맥에서는 trading-engine 저장소의 launchd 스크립트가 `labs-api`(이 API)와 `labs-collector`(`market-data serve`)를 서비스로 띄웁니다. 등록·상태·로그는 trading-engine 의 상시 운영 문서에 있습니다.
+이 맥에서는 trading-engine 저장소의 launchd 스크립트가 `labs-api`(이 API 와 수집 스케줄러, 한 프로세스)를 서비스로 띄웁니다. 등록·상태·로그는 trading-engine 의 상시 운영 문서에 있습니다.
 
 ## trading-ui
 

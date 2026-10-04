@@ -48,9 +48,8 @@ trading-labs/
 | 명령 | 역할 |
 |------|------|
 | `backfill` | 기간 내 평일(월–금) 일봉 일괄 수집 |
-| `update` | curated 마지막 거래일 이후 미수집일 1일 갱신 |
+| `update` | 마지막 거래일 이후 빠진 평일을 모두 갱신(휴장일은 저장하지 않음) |
 | `validate` | 특정일 curated 가격에 품질 검사만 수행 |
-| `serve` | 평일 18:30(KST) `update` 스케줄 실행 |
 
 # `config.Settings`
 
@@ -58,7 +57,7 @@ trading-labs/
 |------|--------|------|
 | `data_dir` | `data/market-data` | 데이터 루트 |
 | `markets` | `KOSPI`, `KOSDAQ` | 수집 대상 시장 |
-| `schedule_hour` / `schedule_minute` | `18` / `30` | `serve` cron 시각 |
+| `schedule_hour` / `schedule_minute` | `18` / `30` | 일봉 스케줄 시각(labs API 프로세스의 스케줄러). 이 시각 전에는 오늘 일봉을 받지 않음 |
 | `timezone` | `Asia/Seoul` | 스케줄러 타임존 |
 
 파생 경로: `raw_dir`, `curated_dir`, `metadata_dir`.

@@ -27,8 +27,8 @@ caffeinate -sm uv run market-data fundamentals backfill --start-year 2023 --end-
 
 **2) 스케줄 (추가 등록 · 이후 유지)**
 ```bash
-# 일봉: 평일 18:30 KST에 update 자동 (serve 하나만)
-caffeinate -sm uv run market-data serve
+# 일봉(평일 18:30)·컨센서스(토 09:00): labs API 프로세스가 스케줄러를 함께 돌린다 — 하나만 띄운다
+caffeinate -sm uv run labs-api serve
 
 # 재무: 분기·공시 후 가끔 (매일 X). 기본=올해
 caffeinate -sm uv run market-data fundamentals update
@@ -43,10 +43,11 @@ uv run market-data fundamentals update --year 2025 --limit 3 --data-dir data/mar
 
 **3) 가치투자 적정시총·상승여력** — [docs/valuation.md](docs/valuation.md)
 ```bash
-# 컨센서스 스냅샷 (serve가 주 1회 자동 실행, 수동 실행도 가능)
+# 컨센서스 스냅샷 (labs-api 가 주 1회 자동 실행, 수동 실행도 가능)
 uv run market-data consensus update
-# trading-ui용 API (127.0.0.1:8100, Vite 프록시 /api/labs) — .env 의 UI_API_TOKEN 이 있어야 열립니다
-caffeinate -sm uv run labs-api serve
+# trading-ui용 API (127.0.0.1:8100, Vite 프록시 /api/labs) — .env 의 UI_API_TOKEN 이 있어야 열립니다.
+# 위 스케줄과 같은 프로세스다. 화면의 데이터 수집에서 지금 실행·스케줄 켜고 끄기 — docs/collection.md
+uv run labs-api serve
 ```
 
 - 가격(`pykrx`): `.env`의 `KRX_ID` / `KRX_PW`
