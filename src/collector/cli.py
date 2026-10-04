@@ -9,6 +9,7 @@ from collector.config import Settings, load_environment
 from collector.ingestion.adjusted import AdjustedPricesService
 from collector.ingestion.consensus import ConsensusService
 from collector.ingestion.fundamentals import FundamentalsService
+from collector.ingestion.maintenance import prune_closed_days
 from collector.ingestion.service import IngestionService
 from collector.providers import DartQuotaExceeded
 from collector.quality import validate_prices
@@ -18,7 +19,7 @@ load_environment()
 
 app = typer.Typer(help="KRX 전 종목 데이터 수집 CLI")
 fundamentals_app = typer.Typer(help="OpenDART 주요계정 수집 (일봉 파이프라인과 분리)")
-prices_app = typer.Typer(help="일봉 수정주가 재구축 (일별 raw 수집과 분리)")
+prices_app = typer.Typer(help="일봉 수정주가 재구축과 정리 (일별 raw 수집과 분리)")
 consensus_app = typer.Typer(help="WiseReport 컨센서스(추정 순이익)·업종·배당 스냅샷 수집")
 app.add_typer(fundamentals_app, name="fundamentals")
 app.add_typer(prices_app, name="prices")
@@ -81,6 +82,25 @@ def prices_rebuild_adjusted(
         limit=limit,
     )
     typer.echo(f"수정주가 재구축 완료: {run.run_id} ({run.rows_written}행)")
+
+
+@prices_app.command("prune-closed-days")
+def prices_prune_closed_days(
+    apply: bool = typer.Option(False, "--apply", help="실제로 지웁니다. 없으면 지울 대상만 보여 줍니다. 되돌릴 수 없습니다"),
+    data_dir: Path = typer.Option(Path("data/market-data")),
+) -> None:
+    """예전에 저장된 휴장일 파티션(전 종목 거래량 0)을 찾아 지웁니다 — 일봉·유니버스 스냅샷·raw."""
+    result = prune_closed_days(Lakehouse(_settings(data_dir)), apply=apply)
+    if not result.days:
+        typer.echo("휴장일 파티션이 없습니다.")
+        return
+    span = f"{result.days[0]} ~ {result.days[-1]}"
+    if result.removed:
+        typer.echo(f"지웠습니다: 휴장일 {len(result.days)}일({span}), 폴더 {len(result.paths)}개")
+        return
+    typer.echo(f"휴장일 {len(result.days)}일({span}), 폴더 {len(result.paths)}개가 대상입니다.")
+    typer.echo("최근 10일: " + ", ".join(result.days[-10:]))
+    typer.echo("지우지 않았습니다. 지우려면 --apply 를 붙이세요(되돌릴 수 없습니다).")
 
 
 @fundamentals_app.command("sync-corp-codes")

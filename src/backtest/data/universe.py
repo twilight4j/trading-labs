@@ -9,6 +9,21 @@ import pandas as pd
 from backtest.data.prices import _resolve_data_dir
 
 
+def _has_trades(partition: Path) -> bool:
+    """False for a market holiday stored as a partition: every market cap is zero.
+
+    The collector no longer stores holidays, but 248 such partitions were written before that
+    (docs/collection.md). Picking one as "the last session" would filter out every stock.
+    """
+    pattern = str(partition / "**" / "*.parquet")
+    try:
+        with duckdb.connect() as connection:
+            row = connection.execute("SELECT max(market_cap) FROM read_parquet(?, union_by_name=true)", [pattern]).fetchone()
+    except duckdb.Error:
+        return True
+    return bool(row and row[0] is not None and row[0] > 0)
+
+
 def _latest_trade_date_on_or_before(prices_dir: Path, as_of: date) -> date | None:
     found: list[date] = []
     for entry in prices_dir.iterdir():
@@ -20,7 +35,10 @@ def _latest_trade_date_on_or_before(prices_dir: Path, as_of: date) -> date | Non
             continue
         if day <= as_of:
             found.append(day)
-    return max(found) if found else None
+    for day in sorted(found, reverse=True):
+        if _has_trades(prices_dir / f"trade_date={day.isoformat()}"):
+            return day
+    return None
 
 
 def list_universe(

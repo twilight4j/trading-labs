@@ -81,6 +81,13 @@ uv run market-data validate --date 2026-10-02     # 그날 일봉의 품질 검�
 uv run market-data prices rebuild-adjusted --security-id KRX:005930 --start 2015-01-01
 ```
 
+**예전에 쌓인 휴장일 파티션 치우기** — 전 종목 거래량이 0 인 날짜입니다. 지금은 저장하지 않지만 예전 것이 남아 있을 수 있습니다([수집 스케줄](collection.md#일봉-갱신-규칙)).
+
+```bash
+uv run market-data prices prune-closed-days            # 대상만 보여 줍니다
+uv run market-data prices prune-closed-days --apply    # 지웁니다 — 되돌릴 수 없습니다
+```
+
 화면에서 실행 중인 작업을 명령으로 또 돌리지 않습니다. 명령은 labs API 와 다른 프로세스라 서로 막아 주지 않습니다.
 
 ## 5. 스모크
@@ -111,6 +118,6 @@ uv run jupyter lab           # 커널은 프로젝트 .venv
 uv run --group dev pytest
 ```
 
-수집·적정주가·API·백테스트 테스트가 모두 돕니다(2026-10-04 현재 114개). 실제 데이터나 네트워크를 쓰지 않습니다.
+수집·적정주가·API·백테스트 테스트가 모두 돕니다(2026-10-04 현재 117개). 실제 데이터나 네트워크를 쓰지 않습니다.
 
 투자 조언을 제공하지 않습니다.

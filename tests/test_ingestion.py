@@ -6,6 +6,7 @@ import pandas as pd
 
 from collector.config import Settings
 from collector.ingestion import IngestionService
+from collector.ingestion.maintenance import closed_days, prune_closed_days
 from collector.providers.base import MarketDataProvider
 from collector.storage import Lakehouse
 
@@ -119,3 +120,49 @@ def test_today_counts_only_after_the_daily_schedule_time(tmp_path) -> None:
     kst = ZoneInfo("Asia/Seoul")
     assert service.settled_date(datetime(2026, 10, 6, 11, 0, tzinfo=kst)) == date(2026, 10, 5)   # intraday values
     assert service.settled_date(datetime(2026, 10, 6, 18, 30, tzinfo=kst)) == date(2026, 10, 6)
+
+
+def _store_closed_day(lakehouse: Lakehouse, day: str) -> None:
+    """A holiday the way it used to be stored: zeros in curated prices, a universe snapshot and the raw source."""
+    zeros = pd.DataFrame({
+        "trade_date": pd.Timestamp(day), "security_id": ["KRX:005930", "KRX:035420"], "market": ["KOSPI", "KOSDAQ"],
+        "close_raw": 0, "volume": 0, "market_cap": 0,
+    })
+    lakehouse.replace_curated_partition("daily_prices", zeros, f"trade_date={day}")
+    lakehouse.replace_curated_partition("universe_snapshot", zeros[["security_id"]].assign(eligible=False), f"as_of_date={day}")
+    lakehouse.write_raw("daily_prices", zeros, "old-run", f"trade_date={day}/market=KOSPI/adjusted=false")
+
+
+def test_prune_lists_stored_holidays_without_touching_them(tmp_path) -> None:
+    service, lakehouse, _ = _service(tmp_path)
+    service.ingest_day(date(2026, 9, 23))
+    _store_closed_day(lakehouse, "2026-09-24")
+    _store_closed_day(lakehouse, "2026-09-25")
+
+    result = prune_closed_days(lakehouse)
+
+    assert closed_days(lakehouse) == ["2026-09-24", "2026-09-25"]
+    assert result.days == ["2026-09-24", "2026-09-25"] and not result.removed
+    assert len(result.paths) == 6 and all(path.exists() for path in result.paths)
+
+
+def test_prune_apply_removes_only_the_holidays_and_records_it(tmp_path) -> None:
+    service, lakehouse, _ = _service(tmp_path)
+    service.ingest_day(date(2026, 9, 23))
+    service.ingest_day(date(2026, 9, 28))
+    _store_closed_day(lakehouse, "2026-09-24")
+    # A day where only some stocks did not trade is a trading day.
+    mixed = lakehouse.read_curated_partition("daily_prices", "trade_date=2026-09-28")
+    mixed.loc[0, "volume"] = 0
+    lakehouse.replace_curated_partition("daily_prices", mixed, "trade_date=2026-09-28")
+
+    result = prune_closed_days(lakehouse, apply=True)
+
+    assert result.removed and result.days == ["2026-09-24"]
+    assert lakehouse.list_curated_partitions("daily_prices") == ["trade_date=2026-09-23", "trade_date=2026-09-28"]
+    assert lakehouse.list_curated_partitions("universe_snapshot") == ["as_of_date=2026-09-23", "as_of_date=2026-09-28"]
+    assert not (lakehouse.settings.raw_dir / "daily_prices" / "trade_date=2026-09-24").exists()
+    assert (lakehouse.settings.raw_dir / "daily_prices" / "trade_date=2026-09-23").exists()
+    record = next((lakehouse.settings.metadata_dir / "maintenance").glob("closed-days-*.json"))
+    assert json.loads(record.read_text(encoding="utf-8"))["days"] == ["2026-09-24"]
+    assert prune_closed_days(lakehouse, apply=True).days == []      # nothing left

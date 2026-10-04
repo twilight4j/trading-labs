@@ -110,6 +110,21 @@ def test_list_universe_snaps_to_prior_session(tmp_path: Path) -> None:
     assert set(universe["security_id"]) == {"KRX:AAA", "KRX:CCC"}
 
 
+def test_list_universe_skips_a_stored_holiday_of_zero_market_caps(tmp_path: Path) -> None:
+    # Holidays used to be stored with every stock at zero (2026-09-24·25 추석 in the real data).
+    data_dir = _lake(tmp_path)
+    holiday = pd.DataFrame([
+        {**_price_row("KRX:AAA", "KOSPI", 0, 0.0, 0.0), "volume": 0},
+        {**_price_row("KRX:CCC", "KOSDAQ", 0, 0.0, 0.0), "volume": 0},
+    ])
+    _write_partition(tmp_path, "daily_prices", "trade_date=2026-07-31", holiday)
+
+    for as_of in (date(2026, 7, 31), date(2026, 8, 1)):
+        universe = list_universe(data_dir, as_of=as_of, min_market_cap=100_000_000_000)
+        assert universe["as_of"].dt.date.iloc[0] == date(2026, 7, 30)
+        assert set(universe["security_id"]) == {"KRX:AAA", "KRX:CCC"}
+
+
 def test_load_price_panel_multiple_ids(tmp_path: Path) -> None:
     data_dir = _lake(tmp_path)
     panel = load_price_panel(data_dir, ["KRX:AAA", "KRX:CCC"], start=date(2020, 1, 1), end=date(2020, 1, 31))
