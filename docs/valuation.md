@@ -94,7 +94,7 @@ uv run labs-api serve --data-dir data/market-data        # 127.0.0.1:8100
 
 모든 labs API 는 `/api/labs/v1` 아래에 둡니다. 화면 앞의 게이트웨이(trading-gateway)가 경로 앞부분(`/api/labs`)만 보고 labs 전체를 넘기고, trading-engine API(`/api/engine/v1`)와 섞이지 않게 하기 위해서입니다.
 
-**인증:** 모든 요청에 `Authorization: Bearer <UI_API_TOKEN>` 이 필요합니다. 화면은 ngrok 으로 밖에 열려 있고 게이트웨이를 거친 요청은 127.0.0.1 에서 온 것으로 보이므로, 바인딩 주소로는 밖을 가릴 수 없기 때문입니다. 토큰은 trading-engine API 서버와 같은 값입니다. 화면에서 넣는 토큰이 하나로 끝납니다.
+**인증:** 모든 요청에 `Authorization: Bearer <UI_API_TOKEN>` 이 필요합니다. 화면은 ngrok 으로 밖에 열려 있고 게이트웨이를 거친 요청은 127.0.0.1 에서 온 것으로 보이므로, 바인딩 주소로는 밖을 가릴 수 없기 때문입니다. 토큰은 trading-engine API 서버와 같은 값입니다. **화면은 이 토큰을 모릅니다**(2026-10-05 부터) — 화면에는 구글 로그인으로 들어오고, 게이트웨이가 로그인한 요청에만 토큰과 사용자 이름표(`X-User-Email` 등)를 붙여 넘깁니다. labs API 는 아직 이름표를 보지 않고 토큰만 봅니다(JAE-144). 로그인의 규칙은 trading-gateway 의 `docs/auth.md` 에 있습니다.
 
 - 토큰이 없거나 16자보다 짧으면 모든 요청을 `503 auth_not_configured` 로 거부합니다(fail-closed).
 - 토큰이 틀리면 `401 unauthorized` 입니다.

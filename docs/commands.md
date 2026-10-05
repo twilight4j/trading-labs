@@ -28,7 +28,7 @@ cp .env.example .env
 |---|---|
 | `KRX_ID`, `KRX_PW` | KRX 정보데이터시스템 계정 — 일봉·수정주가(pykrx) |
 | `DART_API_KEY` | OpenDART 키 — 재무 |
-| `UI_API_TOKEN` | labs API 토큰. trading-engine 의 `UI_API_TOKEN` 과 같은 값(16자 이상). 없으면 API 가 모든 요청을 거부합니다 |
+| `UI_API_TOKEN` | labs API 토큰. trading-engine·trading-gateway 의 `UI_API_TOKEN` 과 같은 값(16자 이상). 없으면 API 가 모든 요청을 거부합니다. 화면에는 넣지 않습니다 — 게이트웨이가 로그인한 요청에 붙여 넘깁니다 |
 
 데이터는 `data/market-data` 에 쌓입니다(git 에 올리지 않습니다). 다른 곳에 두려면 명령마다 `--data-dir`.
 
