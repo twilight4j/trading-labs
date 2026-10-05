@@ -11,7 +11,7 @@ from collector.config import Settings, load_environment
 from collector.ingestion.jobs import CollectionJobs
 from collector.ingestion.scheduler import build_scheduler
 from valuation import collection, errors
-from valuation.auth import require_token
+from valuation.auth import COLLECTION, FAIR, require_screen, require_token
 from valuation.errors import CONFIG, UNAVAILABLE, ApiError
 from valuation.per import PerConfig
 from valuation.screener import FairValueUnavailable, load_fair_value_table
@@ -46,7 +46,7 @@ def create_app(
     errors.install(app)
     router = APIRouter(prefix=API_PREFIX, dependencies=[Depends(require_token)])
 
-    @router.get("/valuation/fair-value")
+    @router.get("/valuation/fair-value", dependencies=[Depends(require_screen(FAIR))])
     def fair_value() -> dict:
         try:
             per_config = PerConfig.load(per_config_path)
@@ -58,6 +58,9 @@ def create_app(
             raise ApiError(503, UNAVAILABLE, str(exc)) from exc
         return table.as_payload()
 
-    router.include_router(collection.build_router(settings, jobs, lambda: app.state.scheduler is not None))
+    router.include_router(
+        collection.build_router(settings, jobs, lambda: app.state.scheduler is not None),
+        dependencies=[Depends(require_screen(COLLECTION))],
+    )
     app.include_router(router)
     return app

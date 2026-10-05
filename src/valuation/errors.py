@@ -10,6 +10,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
 UNAUTHORIZED = "unauthorized"
+FORBIDDEN = "forbidden"
 AUTH_NOT_CONFIGURED = "auth_not_configured"
 UNAVAILABLE = "unavailable"
 CONFIG = "config"

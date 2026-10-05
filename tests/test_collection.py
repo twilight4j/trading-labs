@@ -4,21 +4,16 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
+from api_caller import authed, caller
 from collector.config import Settings
 from collector.ingestion.jobs import CollectionJobs, JobBusy
 from collector.storage import Lakehouse
 from valuation.api import API_PREFIX, create_app
 from wisereport_fakes import seed_market_data
 
-TOKEN = "test-token-0123456789"
 STATUS = f"{API_PREFIX}/collection/status"
 
-
-@pytest.fixture(autouse=True)
-def api_token(monkeypatch):
-    """Tests own the environment: skip the repo `.env` and use a test token."""
-    monkeypatch.setattr("collector.config._ENV_LOADED", True)
-    monkeypatch.setenv("UI_API_TOKEN", TOKEN)
+pytestmark = pytest.mark.usefixtures("api_token")
 
 
 @pytest.fixture
@@ -56,8 +51,11 @@ class Held:
             self.pending.pop(0)()
 
 
-def authed(app) -> TestClient:
-    return TestClient(app, headers={"Authorization": f"Bearer {TOKEN}"})
+def actions(settings: Settings) -> list[dict]:
+    """Who did what from the screen, without the time."""
+    file = settings.metadata_dir / "collection" / "actions.jsonl"
+    lines = file.read_text(encoding="utf-8").splitlines() if file.exists() else []
+    return [{key: value for key, value in json.loads(line).items() if key != "at"} for line in lines]
 
 
 # --- jobs --------------------------------------------------------------------
@@ -209,6 +207,55 @@ def test_schedule_switch_through_the_api(settings):
     malformed = client.put(f"{API_PREFIX}/collection/jobs/daily/schedule", json={"enabled": "maybe"})
     assert malformed.status_code == 400
     assert malformed.json()["errors"][0]["field"] == "enabled"
+
+
+def test_the_screen_user_who_ran_or_switched_a_job_is_noted(settings):
+    held = Held()
+    app = create_app(settings, jobs=CollectionJobs(settings, held.runners(), held.spawn))
+    minsu = authed(app, caller("collection", email="minsu@example.com"))
+
+    started = minsu.post(f"{API_PREFIX}/collection/jobs/daily/run")
+
+    assert started.json()["by"] == "minsu@example.com"
+    running = {job["id"]: job["running"] for job in minsu.get(STATUS).json()["jobs"]}
+    assert running["daily"]["by"] == "minsu@example.com"                     # shown while it runs
+    assert minsu.post(f"{API_PREFIX}/collection/jobs/daily/run").status_code == 409   # refused — nothing to note
+
+    authed(app).put(f"{API_PREFIX}/collection/jobs/consensus/schedule", json={"enabled": False})
+    minsu.put(f"{API_PREFIX}/collection/jobs/consensus/schedule", json={"enabled": True})
+
+    assert actions(settings) == [
+        {"by": "minsu@example.com", "action": "run", "job": "daily"},
+        {"by": "admin@example.com", "action": "schedule_off", "job": "consensus"},
+        {"by": "minsu@example.com", "action": "schedule_on", "job": "consensus"},
+    ]
+
+
+def test_the_scheduler_and_a_refused_request_leave_no_note(settings):
+    held = Held()
+    jobs = CollectionJobs(settings, held.runners(), held.spawn)
+    client = authed(create_app(settings, jobs=jobs))
+
+    jobs.run_scheduled("daily")                                              # the scheduler is nobody
+    client.post(f"{API_PREFIX}/collection/jobs/adjusted/run")                # 400
+    client.put(f"{API_PREFIX}/collection/jobs/fundamentals/schedule", json={"enabled": True})   # 400
+    viewer = caller("fair", email="viewer@example.com")
+    assert client.post(f"{API_PREFIX}/collection/jobs/consensus/run", headers=viewer).status_code == 403
+
+    assert held.calls == ["daily"] and held.pending == []
+    assert actions(settings) == []
+
+
+def test_a_note_that_cannot_be_written_does_not_stop_the_job(settings):
+    held = Held()
+    jobs = CollectionJobs(settings, held.runners(), held.spawn)
+    (settings.metadata_dir / "collection").mkdir(parents=True, exist_ok=True)
+    (settings.metadata_dir / "collection" / "actions.jsonl").mkdir()         # a directory where the file should be
+
+    jobs.start("daily", by="minsu@example.com")
+    held.finish()
+
+    assert held.calls == ["daily"] and jobs.running() == {}
 
 
 def test_collection_routes_need_the_token(settings):

@@ -1,7 +1,7 @@
 ---
 type: Guide
 title: 수집 스케줄과 화면에서의 실행
-description: labs API 프로세스가 스케줄러를 함께 돌리는 구조, 일봉 따라잡기와 휴장일 규칙, 데이터 수집 화면이 쓰는 상태·실행·스케줄 API.
+description: labs API 프로세스가 스케줄러를 함께 돌리는 구조, 일봉 따라잡기와 휴장일 규칙, 데이터 수집 화면이 쓰는 상태·실행·스케줄 API, 화면에서 누가 실행했는지의 기록.
 tags: [collector, scheduler, api]
 status: draft
 generated: { by: claude-code/claude-opus-5-5, at: 2026-10-04T06:30:00Z }
@@ -48,7 +48,7 @@ generated: { by: claude-code/claude-opus-5-5, at: 2026-10-04T06:30:00Z }
 
 ## API
 
-모두 `/api/labs/v1/collection` 아래이고 토큰이 필요합니다([적정시총](valuation.md)의 인증 규칙과 같습니다). 요청·응답 모양의 원본은 코드(`src/valuation/collection.py`)와 서버의 `/docs` 입니다.
+모두 `/api/labs/v1/collection` 아래이고, 서비스 토큰과 `collection` 화면 권한이 필요합니다([적정시총](valuation.md)의 인증 규칙). 요청·응답 모양의 원본은 코드(`src/valuation/collection.py`)와 서버의 `/docs` 입니다.
 
 | 경로 | 하는 일 |
 |---|---|
@@ -59,5 +59,20 @@ generated: { by: claude-code/claude-opus-5-5, at: 2026-10-04T06:30:00Z }
 - 실행 기록은 `metadata/ingestion_runs` 의 JSON 입니다. 실행이 **끝날 때** 남으므로 "실행 중"은 기록이 아니라 프로세스 안의 상태에서 나옵니다.
 - 기록 파일이 4,400개가 넘어, 디렉터리가 바뀔 때만 다시 읽습니다(첫 조회 약 0.5초, 그다음 수십 ms).
 - 서비스가 기록을 남기기 전에 예외로 끝난 실행은 작업의 `last_error` 로 보입니다. 재시작하면 사라집니다.
+
+## 화면에서 누가 했나
+
+화면에서 작업을 실행하거나 스케줄을 켜고 끈 사람은 `metadata/collection/actions.jsonl` 에 한 줄씩 남습니다(2026-10-05). 게이트웨이가 붙인 이름표의 이메일입니다.
+
+```json
+{"at": "2026-10-05T10:02:11+00:00", "by": "user@example.com", "action": "run", "job": "fundamentals"}
+```
+
+`action` 은 `run`, `schedule_on`, `schedule_off` 입니다. 실행 중에는 상태 API 의 `running.by` 에도 보입니다.
+
+- **왜 남기나:** 화면을 여러 사람이 씁니다. 재무 수집은 OpenDART 일일 한도를 쓰고, 꺼진 스케줄은 누가 다시 켤 때까지 데이터를 멈춥니다.
+- **왜 실행 기록(`ingestion_runs`)이 아닌가:** 실행 기록은 수집 서비스가 쓰고, 한 번의 실행이 기록을 여러 건 남깁니다(일봉은 날짜마다). 서비스는 명령과 스케줄도 함께 부르는 층이라 사용자를 모릅니다. 그래서 요청을 받은 쪽(`CollectionJobs`)이 따로 적습니다.
+- 스케줄이 돌린 실행과 거절된 요청(권한 없음, 이미 실행 중, 화면에서 실행하지 않는 작업)은 남기지 않습니다. 명령으로 실행한 것도 남지 않습니다 — 이 맥에 들어온 사람입니다.
+- 이 파일을 쓰지 못해도 수집은 시작합니다(로그에 남습니다). 화면에는 아직 이 파일을 보여 주지 않습니다 — 파일을 직접 봅니다.
 
 투자 조언을 제공하지 않습니다.

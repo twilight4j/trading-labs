@@ -1,8 +1,9 @@
 """Collection jobs — run on a schedule and on demand, inside the one labs API process.
 
 The scheduler lives in the API process (`labs-api serve`), so "is it running" and "don't run it twice" are plain
-in-memory state. Only the schedule on/off switch is a file (`metadata/collection/schedule.json`), so it survives a
-restart. Restarting the process stops a job that is running.
+in-memory state. Two things are files under `metadata/collection/`: the schedule on/off switch (`schedule.json`), so
+it survives a restart, and who ran or switched what from the screen (`actions.jsonl`). Restarting the process stops a
+job that is running.
 """
 
 from __future__ import annotations
@@ -89,7 +90,7 @@ class CollectionJobs:
         """On unless switched off. A job without a schedule is never enabled."""
         return job in SCHEDULED and bool(self._schedule_state().get(job, True))
 
-    def set_schedule_enabled(self, job: str, enabled: bool) -> None:
+    def set_schedule_enabled(self, job: str, enabled: bool, by: str | None = None) -> None:
         if job not in SCHEDULED:
             raise KeyError(job)
         state = {**self._schedule_state(), job: bool(enabled)}
@@ -97,6 +98,30 @@ class CollectionJobs:
         temp = self._schedule_file.with_suffix(".tmp")
         temp.write_text(json.dumps(state, ensure_ascii=False, indent=2), encoding="utf-8")
         temp.replace(self._schedule_file)
+        self._note(by, "schedule_on" if enabled else "schedule_off", job)
+
+    # --- who did it -----------------------------------------------------------------------------
+
+    @property
+    def _actions_file(self) -> Path:
+        return self.settings.metadata_dir / "collection" / "actions.jsonl"
+
+    def _note(self, by: str | None, action: str, job: str) -> None:
+        """Append who did what from the screen, one JSON line each. Without `by` (the scheduler) nothing is noted.
+
+        Run records cannot carry this: the services write them, one run-now can leave several, and the services do not
+        know users (the commands and the scheduler call them too).
+        """
+        if not by:
+            return
+        line = {"at": datetime.now(UTC).isoformat(timespec="seconds"), "by": by, "action": action, "job": job}
+        try:
+            with self._guard:
+                self._actions_file.parent.mkdir(parents=True, exist_ok=True)
+                with self._actions_file.open("a", encoding="utf-8") as file:
+                    file.write(json.dumps(line, ensure_ascii=False) + "\n")
+        except OSError:  # a note that cannot be written must not stop the collection
+            logger.exception("수집 작업 %s — %s 를 %s 로 남기지 못함", job, action, self._actions_file)
 
     # --- running --------------------------------------------------------------------------------
 
@@ -109,13 +134,15 @@ class CollectionJobs:
         with self._guard:
             return {job: dict(entry) for job, entry in self._errors.items()}
 
-    def _begin(self, job: str, source: str) -> dict[str, str]:
+    def _begin(self, job: str, source: str, by: str | None = None) -> dict[str, str]:
         if job not in self._runners:
             raise KeyError(job)
         with self._guard:
             if job in self._running:
                 raise JobBusy(job)
             entry = {"started_at": datetime.now(UTC).isoformat(timespec="seconds"), "source": source}
+            if by:
+                entry["by"] = by
             self._running[job] = entry
             self._errors.pop(job, None)
             return dict(entry)
@@ -131,9 +158,13 @@ class CollectionJobs:
             with self._guard:
                 self._running.pop(job, None)
 
-    def start(self, job: str, source: str = "api") -> dict[str, str]:
-        """Start the job in the background. Raises `JobBusy` when it is already running, `KeyError` when unknown."""
-        entry = self._begin(job, source)
+    def start(self, job: str, source: str = "api", by: str | None = None) -> dict[str, str]:
+        """Start the job in the background. Raises `JobBusy` when it is already running, `KeyError` when unknown.
+
+        `by` is the signed-in user who asked: shown while the job runs, and noted in the action log.
+        """
+        entry = self._begin(job, source, by)
+        self._note(by, "run", job)
         self._spawn(lambda: self._work(job))
         return entry
 

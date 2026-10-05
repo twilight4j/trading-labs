@@ -6,7 +6,7 @@ trading-ui 의 적정주가 분석·데이터 수집 화면이 쓰는 API 도 �
 | 구성 | 하는 일 |
 |---|---|
 | 수집 `market-data` | 일봉(pykrx)·재무(OpenDART)·컨센서스(WiseReport)를 `data/market-data` 에 쌓습니다 |
-| labs API `labs-api serve` | 적정주가·수집 상태 API(127.0.0.1:8100, 토큰 필요)와 수집 스케줄러를 한 프로세스로 돌립니다 |
+| labs API `labs-api serve` | 적정주가·수집 상태 API(127.0.0.1:8100, 게이트웨이를 거쳐 부릅니다)와 수집 스케줄러를 한 프로세스로 돌립니다 |
 | 백테스트 `backtest` | 쌓인 일봉으로 단일 종목 전략을 돌려 봅니다. 노트북으로도 봅니다 |
 
 ## Quickstart

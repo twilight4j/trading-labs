@@ -94,10 +94,22 @@ uv run labs-api serve --data-dir data/market-data        # 127.0.0.1:8100
 
 모든 labs API 는 `/api/labs/v1` 아래에 둡니다. 화면 앞의 게이트웨이(trading-gateway)가 경로 앞부분(`/api/labs`)만 보고 labs 전체를 넘기고, trading-engine API(`/api/engine/v1`)와 섞이지 않게 하기 위해서입니다.
 
-**인증:** 모든 요청에 `Authorization: Bearer <UI_API_TOKEN>` 이 필요합니다. 화면은 ngrok 으로 밖에 열려 있고 게이트웨이를 거친 요청은 127.0.0.1 에서 온 것으로 보이므로, 바인딩 주소로는 밖을 가릴 수 없기 때문입니다. 토큰은 trading-engine API 서버와 같은 값입니다. **화면은 이 토큰을 모릅니다**(2026-10-05 부터) — 화면에는 구글 로그인으로 들어오고, 게이트웨이가 로그인한 요청에만 토큰과 사용자 이름표(`X-User-Email` 등)를 붙여 넘깁니다. labs API 는 아직 이름표를 보지 않고 토큰만 봅니다(JAE-144). 로그인의 규칙은 trading-gateway 의 `docs/auth.md` 에 있습니다.
+**인증:** 요청마다 두 가지를 봅니다(`src/valuation/auth.py`). 화면은 ngrok 으로 밖에 열려 있고 게이트웨이를 거친 요청은 127.0.0.1 에서 온 것으로 보이므로, 바인딩 주소로는 밖을 가릴 수 없기 때문입니다.
+
+1. **서비스 토큰** — `Authorization: Bearer <UI_API_TOKEN>`. trading-engine API 서버와 같은 값이고, 게이트웨이만 가집니다. 화면은 이 토큰을 모릅니다(2026-10-05 부터) — 화면에는 구글 로그인으로 들어오고, 게이트웨이가 로그인한 요청에만 토큰과 사용자 이름표를 붙여 넘깁니다.
+2. **화면 권한** — 게이트웨이가 붙인 이름표(`X-User-Email`, `X-User-Screens`, `X-User-Admin`)로 경로마다 확인합니다(2026-10-05).
+
+| 경로 | 필요한 화면 |
+|---|---|
+| `GET /valuation/fair-value` | `fair` (적정주가 분석) |
+| `/collection/…` ([수집](collection.md)) | `collection` (데이터 수집) |
 
 - 토큰이 없거나 16자보다 짧으면 모든 요청을 `503 auth_not_configured` 로 거부합니다(fail-closed).
-- 토큰이 틀리면 `401 unauthorized` 입니다.
+- 토큰이 틀리면 `401 unauthorized` 입니다. 이름표가 맞아도 토큰이 먼저입니다.
+- 그 화면의 권한이 없으면 `403 forbidden` 입니다. 관리자(`X-User-Admin: true`)는 모든 경로를 지납니다.
+- **이름표가 없으면 토큰이 맞아도 `403 forbidden` 입니다**(fail-closed). 게이트웨이가 이름표를 빠뜨려도 열리지 않게 하려는 것입니다. 게이트웨이를 거치지 않고 직접 부를 때는 이름표 세 개도 붙입니다.
+- labs 는 사용자도 세션도 모릅니다 — 이름표만 읽습니다. 누가 어느 화면을 보는지는 trading-gateway 가 정하고(`docs/users.md`, `docs/auth.md`), 화면 키의 원본은 trading-ui 의 `src/menu.js` 입니다.
+- 경로를 더하면 `tests/test_access.py` 의 표에 그 경로의 화면을 적어야 합니다. 빠지면 테스트가 실패합니다.
 - 오류는 trading-engine 과 같은 `{detail, code, errors}` 모양입니다(`src/valuation/errors.py`).
 
 ```json

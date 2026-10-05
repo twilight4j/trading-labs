@@ -6,6 +6,7 @@ import pytest
 from fastapi.testclient import TestClient
 from typer.testing import CliRunner
 
+from api_caller import TOKEN, authed
 from collector.config import Settings
 from collector.ingestion.consensus import ConsensusService
 from collector.storage import Lakehouse
@@ -153,18 +154,8 @@ def test_build_rows_applies_market_cap_floor_and_per_precedence():
 
 
 FAIR_VALUE = f"{API_PREFIX}/valuation/fair-value"
-TOKEN = "test-token-0123456789"
 
-
-@pytest.fixture(autouse=True)
-def api_token(monkeypatch):
-    """Tests own the environment: skip the repo `.env` and use a test token."""
-    monkeypatch.setattr("collector.config._ENV_LOADED", True)
-    monkeypatch.setenv("UI_API_TOKEN", TOKEN)
-
-
-def authed(app) -> TestClient:
-    return TestClient(app, headers={"Authorization": f"Bearer {TOKEN}"})
+pytestmark = pytest.mark.usefixtures("api_token")
 
 
 @pytest.fixture

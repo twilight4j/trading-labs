@@ -1,4 +1,4 @@
-"""labs API — collection status, run-now and the schedule switch for trading-ui's 데이터 수집 screen.
+"""labs API — collection status, run-now and the schedule switch for trading-ui's 데이터 수집 screen (`collection`).
 
 Reads what the collector already records (`metadata/ingestion_runs`, consensus manifests, price partitions) and drives
 `CollectionJobs`, which shares this process with the scheduler. Rules: docs/collection.md.
@@ -20,6 +20,7 @@ from collector.ingestion.consensus import latest_published_snapshot, read_latest
 from collector.ingestion.jobs import RUNNABLE, SCHEDULED, CollectionJobs, JobBusy
 from collector.ingestion.scheduler import schedules, trigger
 from collector.storage import Lakehouse
+from valuation.auth import By
 from valuation.errors import CONFLICT, NOT_FOUND, VALIDATION, ApiError
 
 # Screen job id → the `kind` its runs are recorded under. 수정주가 has records but is not run from the screen.
@@ -107,19 +108,19 @@ def build_router(settings: Settings, jobs: CollectionJobs, scheduler_running: Ca
         }
 
     @router.post("/jobs/{job}/run", status_code=202)
-    def run(job: str) -> dict:
+    def run(job: str, who: By) -> dict:
         if known(job) not in RUNNABLE:
             raise ApiError(400, VALIDATION, f"{job} 은 화면에서 실행하지 않습니다 — 명령으로 실행하세요.")
         try:
-            return {"job": job, **jobs.start(job, source="api")}
+            return {"job": job, **jobs.start(job, source="api", by=who.email)}
         except JobBusy:
             raise ApiError(409, CONFLICT, "이미 실행 중입니다 — 끝난 뒤 다시 실행하세요.") from None
 
     @router.put("/jobs/{job}/schedule")
-    def set_schedule(job: str, body: ScheduleUpdate) -> dict:
+    def set_schedule(job: str, body: ScheduleUpdate, who: By) -> dict:
         if known(job) not in SCHEDULED:
             raise ApiError(400, VALIDATION, f"{job} 은 스케줄이 없는 작업입니다.")
-        jobs.set_schedule_enabled(job, body.enabled)
+        jobs.set_schedule_enabled(job, body.enabled, by=who.email)
         return {"job": job, "enabled": jobs.schedule_enabled(job)}
 
     return router
